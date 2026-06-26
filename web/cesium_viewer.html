@@ -21,13 +21,11 @@
 <div id="cesiumContainer"></div>
 <div id="info">🌧️ முகில்நோக்கு · ConvLSTM T+1 Rainfall Forecast (mm)</div>
 <script>
+  Cesium.Ion.defaultAccessToken = '__CESIUM_TOKEN__';
   const viewer = new Cesium.Viewer("cesiumContainer", {
     animation: false, timeline: false, fullscreenButton: false,
     baseLayerPicker: false, homeButton: false, sceneModePicker: false,
-    navigationHelpButton: false, geocoder: false,
-    imageryProvider: new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://a.tile.openstreetmap.org/'
-    })
+    navigationHelpButton: false, geocoder: false
   });
 
   const points = [__CESIUM_POINTS__];

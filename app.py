@@ -173,6 +173,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
             
             # Safely inject dynamic data
             cesium_html = cesium_html.replace('__CESIUM_POINTS__', cesium_js_data)
+            cesium_html = cesium_html.replace('__CESIUM_TOKEN__', CESIUM_TOKEN)
 
             components.html(cesium_html, height=520)
 
