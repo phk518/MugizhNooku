@@ -10,7 +10,7 @@ from pathlib import Path
 from model import DigitalTwinPredictor
 
 # ─── Configuration ──────────────────────────────────────────────────────────
-_BASE        = Path(__file__).parent
+_BASE        = Path(__file__).resolve().parent
 WEIGHTS_PATH = _BASE / 'models' / 'mugizhnokku_best.pth'
 CONFIG_PATH  = _BASE / 'models' / 'normalization_config.json'
 
@@ -107,13 +107,18 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
         # 5. Build lat/lon DataFrame
         lat_idx, lon_idx = np.indices((129, 135))
         rf_flat = prediction.flatten().round(2)
+        
+        # Pre-compute colors securely server-side to bypass PyDeck JSON restrictions
+        r_vals = np.clip(255 - rf_flat * 1.2, 0, 255).astype(int)
+        g_vals = np.full_like(rf_flat, 80, dtype=int)
+        b_vals = np.clip(rf_flat * 1.2, 0, 255).astype(int)
+        colors = [[int(r), int(g), int(b), 170] for r, g, b in zip(r_vals, g_vals, b_vals)]
+
         df = pd.DataFrame({
             'lat':         (lat_idx.flatten() * 0.25 + 6.5).round(3),
             'lon':         (lon_idx.flatten() * 0.25 + 66.5).round(3),
             'rainfall_mm': rf_flat,
-            'color_r':     np.clip(255 - rf_flat * 1.2, 0, 255).astype(int),
-            'color_g':     80,
-            'color_b':     np.clip(rf_flat * 1.2, 0, 255).astype(int)
+            'color':       colors
         })
 
         # ── Metrics panel ────────────────────────────────────────────────
@@ -161,65 +166,13 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 
             cesium_js_data = ",\n".join(cesium_points)
 
-            cesium_html = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>MugizhNokku CesiumJS</title>
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
-  <script>
-    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";
-    Cesium.buildModuleUrl.setBaseUrl(window.CESIUM_BASE_URL);
-    Cesium.FeatureDetection.supportsWebWorkers = function() {{ return false; }};
-  </script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
-  <style>
-    html,body,#cesiumContainer{{width:100%;height:520px;margin:0;padding:0;overflow:hidden;background:#000;}}
-    #info{{position:absolute;top:10px;left:50%;transform:translateX(-50%);
-           background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;
-           font-family:sans-serif;font-size:13px;z-index:99;}}
-  </style>
-</head>
-<body>
-<div id="cesiumContainer"></div>
-<div id="info">🌧️ முகில்நோக்கு · ConvLSTM T+1 Rainfall Forecast (mm)</div>
-<script>
-  const viewer = new Cesium.Viewer("cesiumContainer", {{
-    animation: false, timeline: false, fullscreenButton: false,
-    baseLayerPicker: false, homeButton: false, sceneModePicker: false,
-    navigationHelpButton: false, geocoder: false,
-    imageryProvider: new Cesium.OpenStreetMapImageryProvider({{
-        url: 'https://a.tile.openstreetmap.org/'
-    }})
-  }});
-
-  const points = [{cesium_js_data}];
-
-  points.forEach(p => {{
-    viewer.entities.add({{
-      position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.h),
-      cylinder: {{
-        length: p.h < 100 ? 100 : p.h,
-        topRadius: 0,
-        bottomRadius: 12000,
-        material: new Cesium.ColorMaterialProperty(
-          Cesium.Color.fromBytes(p.r, p.g, p.b, 200)
-        ),
-        outline: false,
-      }},
-      description: `Rainfall: ${{p.rain.toFixed(1)}} mm<br>Lat: ${{p.lat}}°N | Lon: ${{p.lon}}°E`,
-    }});
-  }});
-
-  viewer.camera.flyTo({{
-    destination: Cesium.Cartesian3.fromDegrees(76.0, 14.0, 1800000),
-    orientation: {{ heading: Cesium.Math.toRadians(0),
-                    pitch: Cesium.Math.toRadians(-45), roll: 0 }}
-  }});
-</script>
-</body>
-</html>"""
+            # Load separated HTML asset to avoid f-string injection risks
+            html_path = _BASE / 'web' / 'cesium_viewer.html'
+            with open(html_path, 'r', encoding='utf-8') as f:
+                cesium_html = f.read()
+            
+            # Safely inject dynamic data
+            cesium_html = cesium_html.replace('__CESIUM_POINTS__', cesium_js_data)
 
             components.html(cesium_html, height=520)
 
@@ -230,7 +183,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
                 get_position='[lon, lat]',
                 get_elevation='rainfall_mm',
                 elevation_scale=80, radius=5500,
-                get_fill_color='[color_r, color_g, color_b, 170]',
+                get_fill_color='color',
                 pickable=True, extruded=True, auto_highlight=True,
             )
             view_state = pdk.ViewState(

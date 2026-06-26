@@ -132,8 +132,9 @@ def main():
                 torch.save(model.state_dict(), best_model_path)
                 print(f"--> Saved best model to {best_model_path}")
             except Exception as e:
-                # Local execution fallback
-                local_path = Path('./models/mugizhnokku_best.pth')
+                # Local execution fallback using absolute resolution
+                BASE_DIR = Path(__file__).resolve().parent
+                local_path = BASE_DIR / 'models' / 'mugizhnokku_best.pth'
                 local_path.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(model.state_dict(), local_path)
                 print(f"--> Local drive used. Saved best model to {local_path}")
