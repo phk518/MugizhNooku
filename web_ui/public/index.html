@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MugizhNokku | Native 3D Digital Twin</title>
+  
+  <!-- CesiumJS Native -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+
+  <!-- Google Fonts for Modern Typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-glass: rgba(15, 23, 42, 0.7);
+      --border-glass: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --accent: #38bdf8;
+    }
+    
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background: #000;
+    }
+
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Premium Glassmorphism UI */
+    .dashboard-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 320px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      padding: 24px;
+      color: var(--text-main);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0;
+      background: linear-gradient(135deg, #e0f2fe, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin: 0;
+    }
+
+    .metric-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #cbd5e1;
+    }
+
+    /* Loading Overlay */
+    #loader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      color: white;
+      transition: opacity 0.5s ease;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loader">
+  <div class="spinner"></div>
+  <h2>Computing T+1 Forecast...</h2>
+  <p style="color: #64748b;">Running PyTorch ConvLSTM Engine</p>
+</div>
+
+<!-- 3D Engine -->
+<div id="cesiumContainer"></div>
+
+<!-- UI Dashboard -->
+<div class="dashboard-panel">
+  <div>
+    <h1 class="title">முகில்நோக்கு</h1>
+    <p class="subtitle">Digital Twin Architecture v2.0</p>
+  </div>
+  
+  <div class="metric-card">
+    <div class="metric-label">Model Architecture</div>
+    <div style="font-size: 18px; font-weight: 600; color: white;">ConvLSTM 3D</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-label">Active Rain Cells</div>
+    <div class="metric-value" id="cellCount">--</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-label">Peak Forecast</div>
+    <div class="metric-value" id="peakRain">--<span style="font-size:14px; color: #94a3b8;"> mm</span></div>
+  </div>
+  
+  <p style="font-size: 11px; color: #64748b; margin-top: auto; line-height: 1.4;">Hardware acceleration active.<br>Native REST API connection established.</p>
+</div>
+
+<script>
+  // 1. Initialize Cesium without limits
+  const viewer = new Cesium.Viewer("cesiumContainer", {
+    animation: false, timeline: false, fullscreenButton: false,
+    baseLayerPicker: false, homeButton: false, sceneModePicker: false,
+    navigationHelpButton: false, geocoder: false,
+    imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        credit: 'Esri World Imagery'
+    })
+  });
+
+  // Focus on India immediately
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(76.0, 14.0, 4000000),
+    duration: 0
+  });
+
+  // 2. Fetch AI predictions natively via REST API
+  fetch('/api/predict')
+    .then(response => response.json())
+    .then(json => {
+      const data = json.data;
+      console.log(`Received ${data.length} valid prediction points.`);
+      
+      let maxRain = 0;
+
+      // Render ultra-fast 3D cylinders
+      data.forEach(p => {
+        if (p.rain > maxRain) maxRain = p.rain;
+
+        viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.h / 2),
+          cylinder: {
+            length: p.h < 100 ? 100 : p.h,
+            topRadius: 4000,
+            bottomRadius: 10000,
+            material: new Cesium.ColorMaterialProperty(
+              Cesium.Color.fromBytes(p.r, p.g, p.b, 210)
+            ),
+            outline: false,
+          },
+          description: `<h2>Rainfall: ${p.rain.toFixed(1)} mm</h2><p>Lat: ${p.lat}°N | Lon: ${p.lon}°E</p>`,
+        });
+      });
+
+      // Update UI Metrics
+      document.getElementById('cellCount').innerText = data.length.toLocaleString();
+      document.getElementById('peakRain').innerHTML = maxRain.toFixed(1) + '<span style="font-size:14px; color:#94a3b8"> mm</span>';
+
+      // Hide Loader & swoop in dynamically
+      document.getElementById('loader').style.opacity = '0';
+      setTimeout(() => document.getElementById('loader').remove(), 500);
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(76.0, 10.0, 1800000),
+        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+        duration: 3.0 // Cinematic sweep!
+      });
+    })
+    .catch(err => {
+      console.error("API Error:", err);
+      document.getElementById('loader').innerHTML = `<h2 style="color:#ef4444">Connection Failed</h2><p>${err}</p>`;
+    });
+
+</script>
+</body>
+</html>
