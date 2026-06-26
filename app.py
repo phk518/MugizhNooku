@@ -16,7 +16,7 @@ CONFIG_PATH  = _BASE / 'models' / 'normalization_config.json'
 
 # Get a FREE token at https://cesium.com/ion/signup
 # Paste it below for the full CesiumJS globe experience
-CESIUM_TOKEN = "YOUR_CESIUM_ION_TOKEN_HERE"
+CESIUM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMjUyNzg4MC01OTQwLTQ4YTYtOGYwNC04NGVhYzNlOWU3MzkiLCJpZCI6NDQ5NDEzLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODI0Nzc2OTB9.As9mD9-k9LjhxNtgqvXbfIkehLN9O1ByJqVx_eIecTM"
 
 st.set_page_config(
     layout="wide",
