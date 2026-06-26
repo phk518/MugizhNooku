@@ -172,7 +172,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <script>
     Cesium.buildModuleUrl.setBaseUrl("https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/");
-    Cesium.FeatureDetection.supportsWebWorkers = function() { return false; };
+    Cesium.FeatureDetection.supportsWebWorkers = function() {{ return false; }};
   </script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
   <style>
