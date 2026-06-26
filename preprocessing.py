@@ -1,6 +1,4 @@
 import xarray as xr
-import rioxarray
-from shapely.geometry import mapping
 
 def harmonize_grids(ds_coarse, ds_fine_target):
     """
@@ -15,15 +13,20 @@ def harmonize_grids(ds_coarse, ds_fine_target):
 def mask_to_region(ds, shapefile_path):
     """
     Clips the xarray dataset to a specific geographical boundary shapefile.
+    Imports are lazy to avoid breaking the pipeline if rioxarray/shapely are unavailable.
     """
+    import rioxarray
     import geopandas as gpd
+    from shapely.geometry import mapping
+
     gdf = gpd.read_file(shapefile_path)
     ds.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
     ds.rio.write_crs("epsg:4326", inplace=True)
     return ds.rio.clip(gdf.geometry.apply(mapping), gdf.crs, drop=True)
 
 def minmax_normalize(data_array):
-    """Normalized array bounded between 0 and 1 for stable AI gradients."""
+    """Normalized array bounded between 0 and 1 for stable AI gradients.
+    Adds epsilon to denominator to prevent division-by-zero for constant fields."""
     min_val = data_array.min()
     max_val = data_array.max()
-    return (data_array - min_val) / (max_val - min_val), min_val, max_val
+    return (data_array - min_val) / (max_val - min_val + 1e-8), min_val, max_val

@@ -3,12 +3,14 @@ from torch.utils.data import Dataset
 import numpy as np
 
 class ClimateDataset(Dataset):
-    def __init__(self, xr_dataset, sequence_length=7, target_vars=['rainfall']):
+    def __init__(self, xr_dataset, sequence_length=7, target_vars=None):
         """
         xr_dataset: Harmonized xarray dataset with time, lat, lon dimensions.
         sequence_length: Number of past days to use as context (T).
         target_vars: List of variables to predict at T+1.
         """
+        if target_vars is None:
+            target_vars = ['rainfall']
         self.seq_len = sequence_length
         self.target_vars = target_vars
         

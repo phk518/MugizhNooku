@@ -37,12 +37,11 @@ def main():
         lons = np.linspace(66.5, 100.0, 135)
         times = pd.date_range('2024-01-01', periods=days)
         
-        # Generate mock spatial data tensor: (366, 129, 135)
-        mock_data = np.random.rand(days, 129, 135).astype(np.float32)
+        # Generate independent mock spatial data per channel (prevents degenerate training)
         ds_merged = xr.Dataset({
-            'rainfall': (['time', 'lat', 'lon'], mock_data),
-            'min_temp': (['time', 'lat', 'lon'], mock_data),
-            'max_temp': (['time', 'lat', 'lon'], mock_data)
+            'rainfall': (['time', 'lat', 'lon'], np.random.rand(days, 129, 135).astype(np.float32)),
+            'min_temp': (['time', 'lat', 'lon'], np.random.rand(days, 129, 135).astype(np.float32) * 20 + 10),
+            'max_temp': (['time', 'lat', 'lon'], np.random.rand(days, 129, 135).astype(np.float32) * 20 + 25)
         }, coords={'time': times, 'lat': lats, 'lon': lons})
     
     # 2. Dataset Initialization & Data Splitting
@@ -79,7 +78,7 @@ def main():
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     
-    num_epochs = 5
+    num_epochs = int(os.environ.get('MUGIZH_EPOCHS', 5))  # Override via: export MUGIZH_EPOCHS=50
     best_val_rmse = float('inf')
     
     # 5. State Checkpointing logic

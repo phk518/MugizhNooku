@@ -30,13 +30,10 @@ st.set_page_config(
 def load_model(weights_path: Path):
     model = DigitalTwinPredictor(input_channels=3, hidden_channels=32, out_channels=1)
     if weights_path.exists():
-        state = torch.load(weights_path, map_location='cpu')
+        state = torch.load(weights_path, map_location='cpu', weights_only=True)
         model.load_state_dict(state)
-        st.sidebar.success("✅ Trained weights loaded!")
-    else:
-        st.sidebar.warning("⚠️ No weights found — using untrained model for demo.")
     model.eval()
-    return model
+    return model, weights_path.exists()
 
 @st.cache_data
 def load_config(config_path: Path):
@@ -60,8 +57,14 @@ moisture_multiplier = st.sidebar.slider(
 )
 seq_len = st.sidebar.slider("Context Window (days)", 3, 7, 7, 1)
 
-model  = load_model(WEIGHTS_PATH)
+model, weights_found = load_model(WEIGHTS_PATH)
 config = load_config(CONFIG_PATH)
+
+# Show weight status OUTSIDE the cached function (safe for st.* calls)
+if weights_found:
+    st.sidebar.success("✅ Trained weights loaded!")
+else:
+    st.sidebar.warning("⚠️ No weights found — using untrained model for demo.")
 
 # ─── Main UI ────────────────────────────────────────────────────────────────
 
@@ -227,7 +230,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
                 get_position='[lon, lat]',
                 get_elevation='rainfall_mm',
                 elevation_scale=80, radius=5500,
-                get_fill_color='[255 - rainfall_mm * 1.2, 100, rainfall_mm * 1.2, 170]',
+                get_fill_color='[max(0, 255 - rainfall_mm * 1.2), 80, min(255, rainfall_mm * 1.2), 170]',
                 pickable=True, extruded=True, auto_highlight=True,
             )
             view_state = pdk.ViewState(
