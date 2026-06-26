@@ -36,8 +36,8 @@ def load_real_data(grd_folder_path, year=2023):
     
     print("Ingesting raw IMD binary files...")
     ds_rain = parse_imd_rainfall_025(rf_path, year, is_leap_year=is_leap)
-    ds_maxt = parse_imd_temp_100(maxt_path, year, is_leap_year=is_leap)
-    ds_mint = parse_imd_temp_100(mint_path, year, is_leap_year=is_leap)
+    ds_maxt = parse_imd_temp_100(maxt_path, year, is_leap_year=is_leap).rename({'temperature': 'max_temp'})
+    ds_mint = parse_imd_temp_100(mint_path, year, is_leap_year=is_leap).rename({'temperature': 'min_temp'})
     
     print("Harmonizing spatial grids (Bilinear Interpolation)...")
     # Upsample the 1.0 degree temp grids to the 0.25 degree rainfall grid
