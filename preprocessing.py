@@ -9,7 +9,7 @@ def harmonize_grids(ds_coarse, ds_fine_target):
     return ds_coarse.interp(
         lat=ds_fine_target['lat'], 
         lon=ds_fine_target['lon'], 
-        method='bilinear'
+        method='linear'
     )
 
 def mask_to_region(ds, shapefile_path):
