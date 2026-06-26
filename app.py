@@ -155,7 +155,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
                 lon_v = round(j * 0.25 + 66.5, 3)
                 rain  = float(prediction[i, j])
                 
-                if rain > 5.0:
+                if rain > 0.1: # Drastically lowered threshold so we can see ANY output
                     r = min(255, int(rain * 2.5))
                     g = max(0, 120 - int(rain))
                     b = max(0, 200 - int(rain * 2))
@@ -163,6 +163,13 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
                         "lat": lat_v, "lon": lon_v, "rain": rain,
                         "r": r, "g": g, "b": b
                     })
+
+        # GUARANTEE TEST POINT: Always inject a massive red column directly over central India
+        # so you can immediately see if the 3D rendering pipeline is working.
+        three_points.append({
+            "lat": 22.0, "lon": 79.0, "rain": 150.0,
+            "r": 255, "g": 0, "b": 0
+        })
 
         json_data = json.dumps(three_points)
 

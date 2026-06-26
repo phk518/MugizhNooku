@@ -303,9 +303,9 @@
                 const radius = 1.0;
                 const pos = latLonToVector3(p.lat, p.lon, radius);
                 
-                // Scale cylinder height
-                const cylinderHeight = Math.max(p.rain * 0.005, 0.01); // Ensure minimum visible height
-                const geometry = new THREE.CylinderGeometry(0.002, 0.002, cylinderHeight, 5);
+                // Scale cylinder height - Exaggerated for extreme visibility
+                const cylinderHeight = Math.max(p.rain * 0.02, 0.1); // Massive minimum height
+                const geometry = new THREE.CylinderGeometry(0.015, 0.015, cylinderHeight, 6);
                 geometry.translate(0, cylinderHeight / 2, 0);
 
                 const material = new THREE.MeshBasicMaterial({ 
