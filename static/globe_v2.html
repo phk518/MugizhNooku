@@ -297,48 +297,54 @@
         const rainMeshes = [];
         
         function renderRainData() {
-            // We will inject a JSON string here from Python via string replace
-            const dataStr = `/*_INJECT_DATA_*/`;
-            
-            let data = [];
             try {
+                // We will inject a JSON string here from Python via string replace
+                const dataStr = `/*_INJECT_DATA_*/`;
+                
+                let data = [];
                 if (dataStr !== '/*_INJECT_DATA_*/') {
                     data = JSON.parse(dataStr);
                 }
-            } catch(e) {
-                console.error("Data parse error", e);
-            }
-            
-            data.forEach(p => {
-                const radius = 1.0;
-                const pos = latLonToVector3(p.lat, p.lon, radius);
                 
-                // Scale cylinder height - Exaggerated for extreme visibility
-                const cylinderHeight = Math.max(p.rain * 0.02, 0.1); // Massive minimum height
-                const geometry = new THREE.CylinderGeometry(0.015, 0.015, cylinderHeight, 6);
-                geometry.translate(0, cylinderHeight / 2, 0);
+                data.forEach(p => {
+                    const radius = 1.0;
+                    const pos = latLonToVector3(p.lat, p.lon, radius);
+                    
+                    // Scale cylinder height - Exaggerated for extreme visibility
+                    const cylinderHeight = Math.max(p.rain * 0.02, 0.1); // Massive minimum height
+                    const geometry = new THREE.CylinderGeometry(0.015, 0.015, cylinderHeight, 6);
+                    geometry.translate(0, cylinderHeight / 2, 0);
 
-                const material = new THREE.MeshBasicMaterial({ 
-                    color: new THREE.Color(`rgb(${p.r}, ${p.g}, ${p.b})`),
-                    transparent: true,
-                    opacity: 0.9
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: (p.r << 16) | (p.g << 8) | p.b, // Bitwise color is 100% safe
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.copy(pos);
+                    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
+                    
+                    mesh.userData = { rain: p.rain, lat: p.lat, lon: p.lon };
+                    rainMeshes.push(mesh);
+                    earthGroup.add(mesh);
                 });
-                
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.position.copy(pos);
-                mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
-                
-                mesh.userData = { rain: p.rain, lat: p.lat, lon: p.lon };
-                rainMeshes.push(mesh);
-                earthGroup.add(mesh);
-            });
 
-            // Always focus camera on India (Lat 20, Lon 78)
-            const indiaPos = latLonToVector3(20, 78, 2.0);
-            const surfacePos = latLonToVector3(20, 78, 0);
-            camera.position.copy(indiaPos);
-            controls.target.copy(surfacePos);
-            controls.update();
+                // Always focus camera on India (Lat 20, Lon 78)
+                const indiaPos = latLonToVector3(20, 78, 2.0);
+                const surfacePos = latLonToVector3(20, 78, 0);
+                camera.position.copy(indiaPos);
+                controls.target.copy(surfacePos);
+                controls.update();
+
+                // If successful, put a success marker on the HUD
+                document.getElementById('coord-rain').textContent = `SUCCESS: ${data.length} pts`;
+            } catch (err) {
+                // If it fails, print the exact Javascript error to the HUD so it shows in the screenshot
+                document.getElementById('coord-lat').textContent = "JS ERR:";
+                document.getElementById('coord-lon').textContent = err.message.substring(0, 30);
+                document.getElementById('coord-rain').textContent = "CRASH";
+            }
         }
 
         // ── HUD coord readout ──────────────────────────────────
