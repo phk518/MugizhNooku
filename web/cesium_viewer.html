@@ -3,10 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <title>MugizhNokku CesiumJS</title>
+  <script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";</script>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <script>
-    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";
-    Cesium.buildModuleUrl.setBaseUrl(window.CESIUM_BASE_URL);
     Cesium.FeatureDetection.supportsWebWorkers = function() { return false; };
   </script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
