@@ -1,0 +1,11 @@
+# Ignore trained model weights — they are stored in Google Drive
+models/*.pth
+models/*.pt
+
+# Ignore raw binary data files
+data/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
