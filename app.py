@@ -106,10 +106,14 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 
         # 5. Build lat/lon DataFrame
         lat_idx, lon_idx = np.indices((129, 135))
+        rf_flat = prediction.flatten().round(2)
         df = pd.DataFrame({
             'lat':         (lat_idx.flatten() * 0.25 + 6.5).round(3),
             'lon':         (lon_idx.flatten() * 0.25 + 66.5).round(3),
-            'rainfall_mm': prediction.flatten().round(2)
+            'rainfall_mm': rf_flat,
+            'color_r':     np.clip(255 - rf_flat * 1.2, 0, 255).astype(int),
+            'color_g':     80,
+            'color_b':     np.clip(rf_flat * 1.2, 0, 255).astype(int)
         })
 
         # ── Metrics panel ────────────────────────────────────────────────
@@ -165,6 +169,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 <head>
   <meta charset="utf-8" />
   <title>MugizhNokku CesiumJS</title>
+  <script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";</script>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
   <style>
@@ -227,7 +232,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
                 get_position='[lon, lat]',
                 get_elevation='rainfall_mm',
                 elevation_scale=80, radius=5500,
-                get_fill_color='[max(0, 255 - rainfall_mm * 1.2), 80, min(255, rainfall_mm * 1.2), 170]',
+                get_fill_color='[color_r, color_g, color_b, 170]',
                 pickable=True, extruded=True, auto_highlight=True,
             )
             view_state = pdk.ViewState(
