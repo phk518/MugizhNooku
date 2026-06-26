@@ -59,7 +59,10 @@
   <script>
     Cesium.buildModuleUrl.setBaseUrl(Cesium.CESIUM_BASE_URL || window.CESIUM_BASE_URL);
 
-    // We do NOT disable web workers here, per the AI's recommendation!
+    // CRITICAL: We MUST disable web workers because Streamlit components.html executes in a sandboxed iframe with a 'null' origin.
+    // Modern browsers strictly forbid instantiating WebWorkers from a null origin (SecurityError).
+    // If we do not disable this, Cesium crashes instantly and you get a black screen ("no earth").
+    Cesium.FeatureDetection.supportsWebWorkers = function() { return false; };
     
     const viewer = new Cesium.Viewer("cesiumContainer", {
       animation: false,
