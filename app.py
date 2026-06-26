@@ -175,12 +175,12 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 <div id="cesiumContainer"></div>
 <div id="info">🌧️ முகில்நோக்கு · ConvLSTM T+1 Rainfall Forecast (mm)</div>
 <script>
-  {'Cesium.Ion.defaultAccessToken = "' + CESIUM_TOKEN + '";' if has_token else '// No token — using offline terrain'}
+    {'Cesium.Ion.defaultAccessToken = "' + CESIUM_TOKEN + '";' if has_token else '// No token — using offline terrain'}
   const viewer = new Cesium.Viewer("cesiumContainer", {{
     animation: false, timeline: false, fullscreenButton: false,
     baseLayerPicker: false, homeButton: false, sceneModePicker: false,
     navigationHelpButton: false, geocoder: false,
-    {'terrainProvider: Cesium.createWorldTerrain(),' if has_token else ''}
+    {'terrain: Cesium.Terrain.fromWorldTerrain(),' if has_token else ''}
     imageryProvider: new Cesium.TileMapServiceImageryProvider({{
       url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
     }}),
