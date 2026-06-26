@@ -169,8 +169,11 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 <head>
   <meta charset="utf-8" />
   <title>MugizhNokku CesiumJS</title>
-  <script>window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";</script>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <script>
+    Cesium.buildModuleUrl.setBaseUrl("https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/");
+    Cesium.FeatureDetection.supportsWebWorkers = function() { return false; };
+  </script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
   <style>
     html,body,#cesiumContainer{{width:100%;height:520px;margin:0;padding:0;overflow:hidden;background:#000;}}
