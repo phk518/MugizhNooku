@@ -174,7 +174,7 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
         json_data = json.dumps(three_points)
 
         # 2. Load the HTML template
-        html_path = _BASE / 'static' / 'globe_v2.html'
+        html_path = _BASE / 'static' / 'cesium_v2.html'
         with open(html_path, 'r', encoding='utf-8') as f:
             globe_html = f.read()
             

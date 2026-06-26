@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MugizhNokku CesiumJS</title>
+
+  <script>
+    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";
+  </script>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+
+  <style>
+    html, body, #cesiumContainer {
+      width: 100%;
+      height: 750px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.72);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      z-index: 99;
+      backdrop-filter: blur(6px);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #status {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: rgba(255,255,255,0.85);
+      font-family: system-ui, sans-serif;
+      font-size: 12px;
+      z-index: 99;
+      background: rgba(0,0,0,0.45);
+      padding: 6px 10px;
+      border-radius: 8px;
+      max-width: calc(100% - 20px);
+    }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="info">🌧️ முகில்நோக்கு · ConvLSTM T+1 Rainfall Forecast (mm)</div>
+  <div id="status">Loading rainfall forecast…</div>
+
+  <script>
+    Cesium.buildModuleUrl.setBaseUrl(Cesium.CESIUM_BASE_URL || window.CESIUM_BASE_URL);
+
+    // We do NOT disable web workers here, per the AI's recommendation!
+    
+    const viewer = new Cesium.Viewer("cesiumContainer", {
+      animation: false,
+      timeline: false,
+      fullscreenButton: false,
+      baseLayerPicker: false,
+      homeButton: false,
+      sceneModePicker: false,
+      navigationHelpButton: false,
+      geocoder: false,
+      selectionIndicator: false,
+      infoBox: true,
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        credit: "Esri World Imagery"
+      })
+    });
+
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.postProcessStages.fxaa.enabled = true;
+
+    const statusEl = document.getElementById("status");
+
+    function safeNum(v, fallback) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function safeColor(p) {
+      const r = Math.max(0, Math.min(255, safeNum(p.r, 0)));
+      const g = Math.max(0, Math.min(255, safeNum(p.g, 180)));
+      const b = Math.max(0, Math.min(255, safeNum(p.b, 255)));
+      return Cesium.Color.fromBytes(r, g, b, 220);
+    }
+
+    function makeCylinderHeight(rainMm, rawHeight) {
+      const rain = safeNum(rainMm, 0);
+      const h = safeNum(rawHeight, rain * 1000); // Exaggerate for visibility
+      return Math.max(1000, Math.min(h, 800000));
+    }
+
+    function makeBottomRadius(rainMm) {
+      const rain = Math.max(0, safeNum(rainMm, 0));
+      return Math.max(8000, Math.min(8000 + rain * 50, 18000));
+    }
+
+    // ── Data Injection Logic compatible with app.py ──
+    const injected = `/*_INJECT_DATA_*/`;
+    let points = [];
+    if (injected !== '/*_INJECT_DATA_*/') {
+        try {
+            points = JSON.parse(injected);
+        } catch(e) {
+            console.error("Parse error", e);
+        }
+    }
+
+    const demoPoints = [
+      { lat: 13.0827, lon: 80.2707, rain: 18.6, h: 120000, r: 80, g: 170, b: 255 },
+      { lat: 11.0168, lon: 76.9558, rain: 42.1, h: 240000, r: 40, g: 120, b: 255 }
+    ];
+    const data = points.length ? points : demoPoints;
+
+    data.forEach((p, idx) => {
+      const lat = safeNum(p.lat, null);
+      const lon = safeNum(p.lon, null);
+      if (lat === null || lon === null) return;
+
+      const rain = safeNum(p.rain, 0);
+      const length = makeCylinderHeight(rain, p.h);
+      const bottomRadius = makeBottomRadius(rain);
+
+      viewer.entities.add({
+        id: `rain-${idx}`,
+        position: Cesium.Cartesian3.fromDegrees(lon, lat, length / 2),
+        cylinder: {
+          length: length,
+          topRadius: bottomRadius,
+          bottomRadius: bottomRadius,
+          material: Cesium.ColorMaterialProperty.fromColor(safeColor(p)),
+          outline: false
+        },
+        description: `
+          <div><strong>Rainfall:</strong> ${rain.toFixed(1)} mm</div>
+          <div><strong>Lat:</strong> ${lat.toFixed(4)}</div>
+          <div><strong>Lon:</strong> ${lon.toFixed(4)}</div>
+          <div><strong>Height:</strong> ${length.toFixed(0)} m</div>
+        `
+      });
+    });
+
+    statusEl.textContent = `${data.length} rainfall points loaded`;
+
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(79.0, 20.0, 3000000),
+      orientation: {
+        heading: Cesium.Math.toRadians(0),
+        pitch: Cesium.Math.toRadians(-90),
+        roll: 0
+      },
+      duration: 2.0
+    });
+  </script>
+</body>
+</html>
