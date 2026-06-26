@@ -254,14 +254,12 @@
         scene.add(stars);
 
         // ── Lights ─────────────────────────────────────────────
-        scene.add(new THREE.AmbientLight(0x223366, 0.5));
-        const sun = new THREE.DirectionalLight(0xfff5e0, 2.0);
-        sun.position.set(5, 3, 5);
-        scene.add(sun);
-
-        const fill = new THREE.DirectionalLight(0x1a3060, 0.3);
-        fill.position.set(-5, -2, -3);
-        scene.add(fill);
+        scene.add(new THREE.AmbientLight(0x445577, 0.8)); // Brighter ambient
+        
+        // Attach a directional light to the camera so the side you look at is ALWAYS brightly lit
+        const cameraLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        camera.add(cameraLight);
+        scene.add(camera); // Must add camera to scene for its light to work
 
         // ── Controls ───────────────────────────────────────────
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -270,15 +268,18 @@
         controls.enablePan = false;
         controls.minDistance = 1.1;
         controls.maxDistance = 5.5;
-        controls.autoRotate = false; // We rotate earthGroup instead
+        controls.autoRotate = false; // Stop auto-rotation so India stays in focus
 
         // ── Coordinate Math ────────────────────────────────────
         function latLonToVector3(lat, lon, radius) {
-            const phi = lat * Math.PI / 180;
-            const theta = lon * Math.PI / 180;
-            const x = radius * Math.cos(phi) * Math.cos(theta);
-            const y = radius * Math.sin(phi);
-            const z = radius * Math.cos(phi) * Math.sin(theta);
+            // Standard Three.js SphereGeometry equirectangular mapping formula
+            const phi   = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+
+            const x = -(radius * Math.sin(phi) * Math.cos(theta));
+            const z = (radius * Math.sin(phi) * Math.sin(theta));
+            const y = (radius * Math.cos(phi));
+
             return new THREE.Vector3(x, y, z);
         }
 
@@ -303,14 +304,14 @@
                 const pos = latLonToVector3(p.lat, p.lon, radius);
                 
                 // Scale cylinder height
-                const cylinderHeight = p.rain * 0.005; 
-                const geometry = new THREE.CylinderGeometry(0.0015, 0.0015, cylinderHeight, 5);
+                const cylinderHeight = Math.max(p.rain * 0.005, 0.01); // Ensure minimum visible height
+                const geometry = new THREE.CylinderGeometry(0.002, 0.002, cylinderHeight, 5);
                 geometry.translate(0, cylinderHeight / 2, 0);
 
                 const material = new THREE.MeshBasicMaterial({ 
                     color: new THREE.Color(`rgb(${p.r}, ${p.g}, ${p.b})`),
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.9
                 });
                 
                 const mesh = new THREE.Mesh(geometry, material);
@@ -319,15 +320,15 @@
                 
                 mesh.userData = { rain: p.rain, lat: p.lat, lon: p.lon };
                 rainMeshes.push(mesh);
-                earthGroup.add(mesh); // Add to earthGroup so it rotates with the Earth!
+                earthGroup.add(mesh);
             });
 
-            if (data.length > 0) {
-                // Focus camera on India
-                camera.position.copy(latLonToVector3(20, 80, 2.0));
-                controls.target.copy(latLonToVector3(20, 80, 0));
-                controls.update();
-            }
+            // Always focus camera on India (Lat 20, Lon 78)
+            const indiaPos = latLonToVector3(20, 78, 2.0);
+            const surfacePos = latLonToVector3(20, 78, 0);
+            camera.position.copy(indiaPos);
+            controls.target.copy(surfacePos);
+            controls.update();
         }
 
         // ── HUD coord readout ──────────────────────────────────
@@ -359,14 +360,15 @@
             const hits = raycaster.intersectObject(earth);
             if (hits.length > 0) {
                 const p = hits[0].point.clone().normalize();
-                
-                // Account for the earthGroup's rotation
                 const localP = p.clone().applyMatrix4(earthGroup.matrixWorld.clone().invert());
 
-                const lat = (Math.asin(localP.y) * 180 / Math.PI).toFixed(1);
-                const lon = (Math.atan2(localP.z, localP.x) * 180 / Math.PI).toFixed(1);
-                latEl.textContent = `LAT ${lat}°`;
-                lonEl.textContent = `LON ${lon}°`;
+                // Inverse formula for lat/lon
+                const lat = 90 - (Math.acos(localP.y) * 180 / Math.PI);
+                let lon = (Math.atan2(localP.z, -localP.x) * 180 / Math.PI) - 180;
+                if (lon < -180) lon += 360;
+
+                latEl.textContent = `LAT ${lat.toFixed(1)}°`;
+                lonEl.textContent = `LON ${lon.toFixed(1)}°`;
                 rainEl.textContent = `RAIN — mm`;
             } else {
                 latEl.textContent = `LAT —°`;
