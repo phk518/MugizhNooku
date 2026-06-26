@@ -173,12 +173,28 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 
         json_data = json.dumps(three_points)
 
-        # 2. Load the HTML template (renamed to bypass browser caching)
+        # 2. Load the HTML template
         html_path = _BASE / 'static' / 'globe_v2.html'
         with open(html_path, 'r', encoding='utf-8') as f:
             globe_html = f.read()
+            
+        # 3. Inject Earth Texture as Base64 to bypass CORS
+        import base64
+        import urllib.request
+        try:
+            # Download a high-contrast dark earth map for the Digital Twin look
+            img_url = "https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg"
+            req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
+            img_data = urllib.request.urlopen(req).read()
+            b64_img = base64.b64encode(img_data).decode('utf-8')
+            texture_data_uri = f"data:image/jpeg;base64,{b64_img}"
+        except Exception as e:
+            # Fallback to a tiny blank image if offline
+            texture_data_uri = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
         
-        # 3. Inject the data securely via JSON (avoiding f-string issues)
+        globe_html = globe_html.replace('/*_INJECT_TEXTURE_*/', texture_data_uri)
+        
+        # 4. Inject the data securely via JSON (avoiding f-string issues)
         globe_html = globe_html.replace('/*_INJECT_DATA_*/', json_data)
 
         # 4. Render in Streamlit!

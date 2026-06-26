@@ -191,32 +191,31 @@
         renderer.setPixelRatio(devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // ── Earth ──────────────────────────────────────────────
+        // ── Textures ───────────────────────────────────────────
         const textureLoader = new THREE.TextureLoader();
+        
+        // Base64 injected texture - guarantees 100% load success inside Streamlit sandbox!
+        const textureUri = `/*_INJECT_TEXTURE_*/`;
+        let earthTexture = null;
+        if (textureUri !== '/*_INJECT_TEXTURE_*/') {
+            earthTexture = textureLoader.load(textureUri, () => {
+                const screen = document.getElementById('loading-screen');
+                if (screen) screen.classList.add('hidden');
+            });
+        }
+
+        // ── Earth ──────────────────────────────────────────────
         const earthGroup = new THREE.Group();
         scene.add(earthGroup);
-
-        const earthTexture = textureLoader.load(
-            'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
-            () => {
-                const screen = document.getElementById('loading-screen');
-                if (screen) screen.classList.add('hidden');
-            },
-            undefined,
-            (err) => {
-                console.error("Earth texture failed to load due to iframe CORS. Using fallback color.");
-                const screen = document.getElementById('loading-screen');
-                if (screen) screen.classList.add('hidden');
-            }
-        );
 
         const earth = new THREE.Mesh(
             new THREE.SphereGeometry(1, 64, 64),
             new THREE.MeshPhongMaterial({
                 map: earthTexture,
-                color: 0x051525, // Fallback dark blue/grey color if texture fails
-                specular: new THREE.Color(0x334455),
-                shininess: 20
+                color: 0x2244aa, // Vibrant blue base
+                emissive: 0x051525, // Slight glow
+                specular: new THREE.Color(0x77aadd),
+                shininess: 30
             })
         );
         earthGroup.add(earth);
@@ -310,15 +309,16 @@
                     const radius = 1.0;
                     const pos = latLonToVector3(p.lat, p.lon, radius);
                     
-                    // Scale cylinder height - Exaggerated for extreme visibility
-                    const cylinderHeight = Math.max(p.rain * 0.02, 0.1); // Massive minimum height
+                    // Scale cylinder height - REASONABLE visibility so camera isn't inside it
+                    const cylinderHeight = Math.max(p.rain * 0.001, 0.01); 
                     const geometry = new THREE.CylinderGeometry(0.015, 0.015, cylinderHeight, 6);
                     geometry.translate(0, cylinderHeight / 2, 0);
 
                     const material = new THREE.MeshBasicMaterial({ 
                         color: (p.r << 16) | (p.g << 8) | p.b, // Bitwise color is 100% safe
                         transparent: true,
-                        opacity: 0.9
+                        opacity: 0.9,
+                        side: THREE.DoubleSide // Guarantee visibility from all angles
                     });
                     
                     const mesh = new THREE.Mesh(geometry, material);
@@ -330,8 +330,8 @@
                     earthGroup.add(mesh);
                 });
 
-                // Always focus camera on India (Lat 20, Lon 78)
-                const indiaPos = latLonToVector3(20, 78, 2.0);
+                // Always focus camera on India (Lat 20, Lon 78) at a safe distance
+                const indiaPos = latLonToVector3(20, 78, 2.5);
                 const surfacePos = latLonToVector3(20, 78, 0);
                 camera.position.copy(indiaPos);
                 controls.target.copy(surfacePos);
