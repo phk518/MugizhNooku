@@ -184,9 +184,6 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
     baseLayerPicker: false, homeButton: false, sceneModePicker: false,
     navigationHelpButton: false, geocoder: false,
     {'terrain: Cesium.Terrain.fromWorldTerrain(),' if has_token else ''}
-    imageryProvider: new Cesium.TileMapServiceImageryProvider({{
-      url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-    }}),
   }});
 
   const points = [{cesium_js_data}];
