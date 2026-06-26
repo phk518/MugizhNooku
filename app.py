@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import pandas as pd
 import pydeck as pdk
-import plotly.graph_objects as go
 import json
 import os
 from pathlib import Path
@@ -138,75 +137,91 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
         st.divider()
 
         # ── Dual-Tab Visualization ───────────────────────────────────────
-        tab1, tab2 = st.tabs(["🌐 3D Globe View", "📊 PyDeck Column Map"])
+        tab1, tab2 = st.tabs(["🌐 CesiumJS 3D Globe", "📊 PyDeck Column Map"])
 
-        # ── TAB 1: Plotly 3D Globe ────────────────────────────────────────
+        # ── TAB 1: CesiumJS 3D Globe ─────────────────────────────────────
         with tab1:
-            step = 2
-            lats, lons, rains = [], [], []
+            # Interpolate down to every 4th point for performance (32x34 points)
+            step = 4
+            cesium_points = []
             for i in range(0, 129, step):
                 for j in range(0, 135, step):
-                    lats.append(round(i * 0.25 + 6.5,  3))
-                    lons.append(round(j * 0.25 + 66.5, 3))
-                    rains.append(float(prediction[i, j]))
+                    lat_v = round(i * 0.25 + 6.5, 3)
+                    lon_v = round(j * 0.25 + 66.5, 3)
+                    rain  = float(prediction[i, j])
+                    height = rain * 800  # exaggerate for visibility
+                    # Colour: blue (low) → red (high) in 0-255 RGB
+                    r = min(255, int(rain * 2.5))
+                    g = max(0, 120 - int(rain))
+                    b = max(0, 200 - int(rain * 2))
+                    cesium_points.append(
+                        f"{{lon:{lon_v}, lat:{lat_v}, h:{height:.1f}, "
+                        f"r:{r}, g:{g}, b:{b}, rain:{rain:.1f}}}"
+                    )
 
-            fig = go.Figure()
+            cesium_js_data = ",\n".join(cesium_points)
 
-            fig.add_trace(go.Scattergeo(
-                lat=lats, lon=lons,
-                mode='markers',
-                marker=dict(
-                    size=[max(3, r * 0.15) for r in rains],
-                    color=rains,
-                    colorscale=[
-                        [0.0,  '#0d47a1'],
-                        [0.3,  '#1976d2'],
-                        [0.5,  '#ffeb3b'],
-                        [0.75, '#ff5722'],
-                        [1.0,  '#b71c1c'],
-                    ],
-                    cmin=0,
-                    cmax=float(np.percentile(rains, 99)),
-                    colorbar=dict(
-                        title="Rainfall (mm)",
-                        thickness=15,
-                        len=0.6,
-                        bgcolor='rgba(0,0,0,0.5)',
-                        tickfont=dict(color='white'),
-                        titlefont=dict(color='white'),
-                    ),
-                    opacity=0.85,
-                ),
-                text=[f"{r:.1f} mm" for r in rains],
-                hovertemplate="<b>Rainfall: %{text}</b><br>Lat: %{lat}°N<br>Lon: %{lon}°E<extra></extra>",
-                name='Predicted Rainfall',
-            ))
+            cesium_html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MugizhNokku CesiumJS</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <script>
+    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/";
+    Cesium.buildModuleUrl.setBaseUrl(window.CESIUM_BASE_URL);
+    Cesium.FeatureDetection.supportsWebWorkers = function() {{ return false; }};
+  </script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+  <style>
+    html,body,#cesiumContainer{{width:100%;height:520px;margin:0;padding:0;overflow:hidden;background:#000;}}
+    #info{{position:absolute;top:10px;left:50%;transform:translateX(-50%);
+           background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;
+           font-family:sans-serif;font-size:13px;z-index:99;}}
+  </style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<div id="info">🌧️ முகில்நோக்கு · ConvLSTM T+1 Rainfall Forecast (mm)</div>
+<script>
+  const viewer = new Cesium.Viewer("cesiumContainer", {{
+    animation: false, timeline: false, fullscreenButton: false,
+    baseLayerPicker: false, homeButton: false, sceneModePicker: false,
+    navigationHelpButton: false, geocoder: false,
+    imageryProvider: new Cesium.OpenStreetMapImageryProvider({{
+        url: 'https://a.tile.openstreetmap.org/'
+    }})
+  }});
 
-            fig.update_layout(
-                paper_bgcolor='#0a0a1a',
-                plot_bgcolor='#0a0a1a',
-                margin=dict(l=0, r=0, t=30, b=0),
-                title=dict(
-                    text="🌧️ முகில்நோக்கு · ConvLSTM T+1 Rainfall Forecast",
-                    font=dict(color='white', size=15),
-                    x=0.5
-                ),
-                geo=dict(
-                    projection_type='orthographic',
-                    projection_rotation=dict(lon=80, lat=20, roll=0),
-                    showland=True,   landcolor='#1b2a1b',
-                    showocean=True,  oceancolor='#0d1b2a',
-                    showlakes=True,  lakecolor='#0d1b2a',
-                    showcountries=True, countrycolor='#444',
-                    showcoastlines=True, coastlinecolor='#555',
-                    showframe=False,
-                    bgcolor='#0a0a1a',
-                    lonaxis=dict(range=[60, 100]),
-                    lataxis=dict(range=[5, 40]),
-                ),
-                height=520,
-            )
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+  const points = [{cesium_js_data}];
+
+  points.forEach(p => {{
+    viewer.entities.add({{
+      position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.h),
+      cylinder: {{
+        length: p.h < 100 ? 100 : p.h,
+        topRadius: 0,
+        bottomRadius: 12000,
+        material: new Cesium.ColorMaterialProperty(
+          Cesium.Color.fromBytes(p.r, p.g, p.b, 200)
+        ),
+        outline: false,
+      }},
+      description: `Rainfall: ${{p.rain.toFixed(1)}} mm<br>Lat: ${{p.lat}}°N | Lon: ${{p.lon}}°E`,
+    }});
+  }});
+
+  viewer.camera.flyTo({{
+    destination: Cesium.Cartesian3.fromDegrees(76.0, 14.0, 1800000),
+    orientation: {{ heading: Cesium.Math.toRadians(0),
+                    pitch: Cesium.Math.toRadians(-45), roll: 0 }}
+  }});
+</script>
+</body>
+</html>"""
+
+            components.html(cesium_html, height=520)
 
         # ── TAB 2: PyDeck Column Map ──────────────────────────────────────
         with tab2:
