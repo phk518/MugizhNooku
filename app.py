@@ -1,72 +1,131 @@
+import base64
+import json
+import urllib.request
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import torch
-import numpy as np
-import pandas as pd
-import pydeck as pdk
-import json
-import os
-from pathlib import Path
+
 from model import DigitalTwinPredictor
 
-# ─── Configuration ──────────────────────────────────────────────────────────
-_BASE        = Path(__file__).resolve().parent
-WEIGHTS_PATH = _BASE / 'models' / 'mugizhnokku_best.pth'
-CONFIG_PATH  = _BASE / 'models' / 'normalization_config.json'
-
-# Get a FREE token at https://cesium.com/ion/signup
-# Paste it below for the full CesiumJS globe experience
-CESIUM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMjUyNzg4MC01OTQwLTQ4YTYtOGYwNC04NGVhYzNlOWU3MzkiLCJpZCI6NDQ5NDEzLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODI0Nzc2OTB9.As9mD9-k9LjhxNtgqvXbfIkehLN9O1ByJqVx_eIecTM"
+_BASE = Path(__file__).resolve().parent
+WEIGHTS_PATH = _BASE / "models" / "mugizhnokku_best.pth"
+CONFIG_PATH = _BASE / "models" / "normalization_config.json"
+HTML_PATH = _BASE / "static" / "cesium_v2.html"
+TEXTURE_URL = "https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg"
+FALLBACK_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
 
 st.set_page_config(
     layout="wide",
     page_title="முகில்நோக்கு | Digital Twin",
-    page_icon="🌧️"
+    page_icon="🌧️",
 )
-
-# ─── Resource / Data Loaders ────────────────────────────────────────────────
 
 @st.cache_resource
 def load_model(weights_path: Path):
     model = DigitalTwinPredictor(input_channels=3, hidden_channels=32, out_channels=1)
+    loaded = False
     if weights_path.exists():
-        state = torch.load(weights_path, map_location='cpu', weights_only=True)
+        state = torch.load(weights_path, map_location="cpu", weights_only=True)
         model.load_state_dict(state)
+        loaded = True
     model.eval()
-    return model, weights_path.exists()
+    return model, loaded
 
 @st.cache_data
 def load_config(config_path: Path):
     if config_path.exists():
-        with open(config_path, 'r') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    return None
+    return {}
 
-# ─── Sidebar Controls ───────────────────────────────────────────────────────
+@st.cache_data
+def load_texture_data_uri(url: str):
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        img_data = urllib.request.urlopen(req, timeout=10).read()
+        return "data:image/jpeg;base64," + base64.b64encode(img_data).decode("utf-8")
+    except Exception:
+        return FALLBACK_PIXEL
 
-st.sidebar.title("🌊 Simulation Controls")
-st.sidebar.caption("Perturb the input climate state and observe the ConvLSTM's response.")
+def build_prediction(model, seq_len, moisture_multiplier, sst_shift, config):
+    input_tensor = torch.randn(1, seq_len, 3, 129, 135)
+    input_tensor[:, :, 0] *= moisture_multiplier
+    input_tensor[:, :, 1] += (sst_shift / 40.0)
+    input_tensor[:, :, 2] += (sst_shift / 40.0)
 
-sst_shift = st.sidebar.slider(
-    "Sea Surface Temp Shift (°C)", -2.0, 2.0, 0.0, 0.1,
-    help="Simulates a warmer/cooler Arabian Sea SST, affecting moisture flux."
-)
-moisture_multiplier = st.sidebar.slider(
-    "Soil Moisture Multiplier", 0.5, 1.5, 1.0, 0.05,
-    help="Scales the antecedent soil moisture in the rainfall channel."
-)
-seq_len = st.sidebar.slider("Context Window (days)", 3, 7, 7, 1)
+    with torch.no_grad():
+        raw_pred = model(input_tensor).squeeze().cpu().numpy()
+
+    rainfall_cfg = config.get("rainfall", {})
+    if "min" in rainfall_cfg and "max" in rainfall_cfg:
+        rf_min = float(rainfall_cfg["min"])
+        rf_max = float(rainfall_cfg["max"])
+        pred = raw_pred * (rf_max - rf_min) + rf_min
+    else:
+        p_min, p_max = float(raw_pred.min()), float(raw_pred.max())
+        pred = (raw_pred - p_min) / max(p_max - p_min, 1e-6) * 200.0
+
+    return np.clip(pred, 0, None)
+
+def build_three_points(prediction):
+    points = []
+    for i in range(0, 129, 3):
+        for j in range(0, 135, 3):
+            rain = float(prediction[i, j])
+            if rain <= 0.1:
+                continue
+            lat_v = round(i * 0.25 + 6.5, 3)
+            lon_v = round(j * 0.25 + 66.5, 3)
+            points.append({
+                "lat": lat_v,
+                "lon": lon_v,
+                "rain": rain,
+                "r": min(255, int(rain * 2.5)),
+                "g": max(0, 120 - int(rain)),
+                "b": max(0, 200 - int(rain * 2)),
+            })
+
+    points.append({
+        "lat": 22.0,
+        "lon": 79.0,
+        "rain": 150.0,
+        "r": 255,
+        "g": 0,
+        "b": 0,
+    })
+    return points
+
+def inject_html(template_path: Path, texture_uri: str, data_json: str):
+    with open(template_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    html = html.replace("/*_INJECT_TEXTURE_*/", texture_uri)
+    html = html.replace("/*_INJECT_DATA_*/", data_json)
+    return html
 
 model, weights_found = load_model(WEIGHTS_PATH)
 config = load_config(CONFIG_PATH)
 
-# Show weight status OUTSIDE the cached function (safe for st.* calls)
-if weights_found:
-    st.sidebar.success("✅ Trained weights loaded!")
-else:
-    st.sidebar.warning("⚠️ No weights found — using untrained model for demo.")
+st.sidebar.title("🌊 Simulation Controls")
+st.sidebar.caption("Perturb the input climate state and observe the ConvLSTM response.")
 
-# ─── Main UI ────────────────────────────────────────────────────────────────
+sst_shift = st.sidebar.slider(
+    "Sea Surface Temp Shift (°C)", -2.0, 2.0, 0.0, 0.1,
+    help="Simulates a warmer/cooler Arabian Sea SST."
+)
+moisture_multiplier = st.sidebar.slider(
+    "Soil Moisture Multiplier", 0.5, 1.5, 1.0, 0.05,
+    help="Scales antecedent soil moisture in the rainfall channel."
+)
+seq_len = st.sidebar.slider("Context Window (days)", 3, 7, 7, 1)
+
+if weights_found:
+    st.sidebar.success("✅ Trained weights loaded")
+else:
+    st.sidebar.warning("⚠️ No weights found — using untrained model")
 
 st.title("முகில்நோக்கு (MugizhNokku) • Live Inference Engine")
 st.caption("AI-Powered Digital Twin of India's Climate — Bharatiya Antariksh Hackathon 2026")
@@ -80,129 +139,37 @@ st.divider()
 
 if st.button("🚀 Run Twin Simulation", use_container_width=True):
     with st.spinner("Routing tensors through ConvLSTM engine…"):
-
-        # 1. Build context tensor
-        input_tensor = torch.randn(1, seq_len, 3, 129, 135)
-
-        # 2. Physics-grounded What-If perturbations
-        input_tensor[:, :, 0, :, :] *= moisture_multiplier
-        input_tensor[:, :, 1, :, :] += (sst_shift / 40.0)
-        input_tensor[:, :, 2, :, :] += (sst_shift / 40.0)
-
-        # 3. Inference
-        with torch.no_grad():
-            raw_pred = model(input_tensor).squeeze().numpy()  # (129, 135)
-
-        # 4. Denormalise using per-variable config
-        if config and 'rainfall' in config:
-            rf_min = config['rainfall']['min']
-            rf_max = config['rainfall']['max']
-            prediction = raw_pred * (rf_max - rf_min) + rf_min
-        else:
-            p_min, p_max = raw_pred.min(), raw_pred.max()
-            prediction = (raw_pred - p_min) / (max(p_max - p_min, 1e-6)) * 200.0
-
-        prediction = np.clip(prediction, 0, None)
-
-        # 5. Build lat/lon DataFrame
-        lat_idx, lon_idx = np.indices((129, 135))
-        rf_flat = prediction.flatten().round(2)
-        
-        # Pre-compute colors securely server-side to bypass PyDeck JSON restrictions
-        r_vals = np.clip(255 - rf_flat * 1.2, 0, 255).astype(int)
-        g_vals = np.full_like(rf_flat, 80, dtype=int)
-        b_vals = np.clip(rf_flat * 1.2, 0, 255).astype(int)
-        colors = [[int(r), int(g), int(b), 170] for r, g, b in zip(r_vals, g_vals, b_vals)]
-
-        df = pd.DataFrame({
-            'lat':         (lat_idx.flatten() * 0.25 + 6.5).round(3),
-            'lon':         (lon_idx.flatten() * 0.25 + 66.5).round(3),
-            'rainfall_mm': rf_flat,
-            'color':       colors
-        })
-
-        # ── Metrics panel ────────────────────────────────────────────────
-        st.divider()
-        m1, m2, m3, m4 = st.columns(4)
-        peak_val = prediction.max()
-        peak_pos = np.unravel_index(prediction.argmax(), prediction.shape)
+        prediction = build_prediction(model, seq_len, moisture_multiplier, sst_shift, config)
+        peak_val = float(prediction.max())
+        peak_pos = np.unravel_index(int(prediction.argmax()), prediction.shape)
         peak_lat = round(peak_pos[0] * 0.25 + 6.5, 2)
         peak_lon = round(peak_pos[1] * 0.25 + 66.5, 2)
+
+        m1, m2, m3, m4 = st.columns(4)
         m1.metric("Peak Rainfall", f"{peak_val:.1f} mm")
         m2.metric("Peak Location", f"{peak_lat}°N, {peak_lon}°E")
         m3.metric("Grid Average", f"{prediction.mean():.1f} mm")
         m4.metric("SST Perturbation", f"{sst_shift:+.1f} °C")
 
         if peak_val > 100:
-            st.warning(
-                f"⚠️ High-intensity rainfall predicted ({peak_val:.1f} mm). "
-                f"Potential flood-risk zone at {peak_lat}°N, {peak_lon}°E."
-            )
+            st.warning(f"⚠️ High-intensity rainfall predicted ({peak_val:.1f} mm). Potential flood-risk zone at {peak_lat}°N, {peak_lon}°E.")
 
-        st.divider()
-
-        # ── Three.js Native 3D Globe ───────────────────────────────────────
-        st.divider()
-        st.subheader("🌐 Three.js Native 3D Globe")
-
-        # 1. Prepare JSON payload
-        # Interpolate down to every 3rd point for performance
-        step = 3
-        three_points = []
-        for i in range(0, 129, step):
-            for j in range(0, 135, step):
-                lat_v = round(i * 0.25 + 6.5, 3)
-                lon_v = round(j * 0.25 + 66.5, 3)
-                rain  = float(prediction[i, j])
-                
-                if rain > 0.1: # Drastically lowered threshold so we can see ANY output
-                    r = min(255, int(rain * 2.5))
-                    g = max(0, 120 - int(rain))
-                    b = max(0, 200 - int(rain * 2))
-                    three_points.append({
-                        "lat": lat_v, "lon": lon_v, "rain": rain,
-                        "r": r, "g": g, "b": b
-                    })
-
-        # GUARANTEE TEST POINT: Always inject a massive red column directly over central India
-        # so you can immediately see if the 3D rendering pipeline is working.
-        three_points.append({
-            "lat": 22.0, "lon": 79.0, "rain": 150.0,
-            "r": 255, "g": 0, "b": 0
+        df = pd.DataFrame({
+            "lat": np.repeat(np.arange(129) * 0.25 + 6.5, 135),
+            "lon": np.tile(np.arange(135) * 0.25 + 66.5, 129),
+            "rainfall_mm": prediction.reshape(-1).round(2),
         })
 
-        json_data = json.dumps(three_points)
+        st.subheader("🌐 CesiumJS 3D Digital Twin")
+        three_points = build_three_points(prediction)
+        json_data = json.dumps(three_points, ensure_ascii=False)
+        texture_uri = load_texture_data_uri(TEXTURE_URL)
+        globe_html = inject_html(HTML_PATH, texture_uri, json_data)
 
-        # 2. Load the HTML template
-        html_path = _BASE / 'static' / 'cesium_v2.html'
-        with open(html_path, 'r', encoding='utf-8') as f:
-            globe_html = f.read()
-            
-        # 3. Inject Earth Texture as Base64 to bypass CORS
-        import base64
-        import urllib.request
-        try:
-            # Download a high-contrast dark earth map for the Digital Twin look
-            img_url = "https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg"
-            req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
-            img_data = urllib.request.urlopen(req).read()
-            b64_img = base64.b64encode(img_data).decode('utf-8')
-            texture_data_uri = f"data:image/jpeg;base64,{b64_img}"
-        except Exception as e:
-            # Fallback to a tiny blank image if offline
-            texture_data_uri = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
-        
-        globe_html = globe_html.replace('/*_INJECT_TEXTURE_*/', texture_data_uri)
-        
-        # 4. Inject the data securely via JSON (avoiding f-string issues)
-        globe_html = globe_html.replace('/*_INJECT_DATA_*/', json_data)
-
-        # 4. Render in Streamlit!
-        st.success("ConvLSTM Inference Complete. Rendering 3D Environment...")
+        st.success("ConvLSTM inference complete. Rendering 3D environment...")
         components.html(globe_html, height=750, scrolling=False)
 
+        with st.expander("Prediction data"):
+            st.dataframe(df, use_container_width=True)
 else:
-    st.info(
-        "👈 Adjust simulation parameters in the sidebar and click "
-        "**Run Twin Simulation** to activate the ConvLSTM inference engine."
-    )
+    st.info("👈 Adjust simulation parameters in the sidebar and click **Run Twin Simulation** to activate the ConvLSTM inference engine.")
