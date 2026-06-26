@@ -201,7 +201,12 @@
             () => {
                 const screen = document.getElementById('loading-screen');
                 if (screen) screen.classList.add('hidden');
-                renderRainData();
+            },
+            undefined,
+            (err) => {
+                console.error("Earth texture failed to load due to iframe CORS. Using fallback color.");
+                const screen = document.getElementById('loading-screen');
+                if (screen) screen.classList.add('hidden');
             }
         );
 
@@ -209,11 +214,16 @@
             new THREE.SphereGeometry(1, 64, 64),
             new THREE.MeshPhongMaterial({
                 map: earthTexture,
+                color: 0x051525, // Fallback dark blue/grey color if texture fails
                 specular: new THREE.Color(0x334455),
                 shininess: 20
             })
         );
         earthGroup.add(earth);
+
+        // Execute data rendering immediately, do not wait for texture!
+        // This guarantees the AI rainfall columns always appear even if the Earth texture is blocked by Streamlit's iframe CORS policy.
+        setTimeout(renderRainData, 100);
 
         // ── Atmosphere ─────────────────────────────────────────
         const atmos = new THREE.Mesh(
