@@ -1,238 +1,403 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>MugizhNokku | Native 3D Digital Twin</title>
-  
-  <!-- CesiumJS Native -->
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MugizhNokku | 3D Interactive Globe</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Mono:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Google Fonts for Modern Typography -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  
-  <style>
-    :root {
-      --bg-glass: rgba(15, 23, 42, 0.7);
-      --border-glass: rgba(255, 255, 255, 0.1);
-      --text-main: #f8fafc;
-      --accent: #38bdf8;
-    }
-    
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      font-family: 'Inter', sans-serif;
-      background: #000;
-    }
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Space Mono', monospace;
+            color: #fff;
+            cursor: grab;
+        }
+        body:active { cursor: grabbing; }
 
-    #cesiumContainer {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
+        canvas { display: block; }
 
-    /* Premium Glassmorphism UI */
-    .dashboard-panel {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      width: 320px;
-      background: var(--bg-glass);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border-glass);
-      border-radius: 16px;
-      padding: 24px;
-      color: var(--text-main);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+        /* ── Loading Screen ── */
+        #loading-screen {
+            position: fixed; inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+        #loading-screen.hidden { opacity: 0; visibility: hidden; }
 
-    .title {
-      font-size: 24px;
-      font-weight: 800;
-      margin: 0;
-      background: linear-gradient(135deg, #e0f2fe, #38bdf8);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+        .loader-title {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(1rem, 3vw, 1.6rem);
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            color: #7ecfff;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 20px rgba(126,207,255,0.5);
+        }
 
-    .subtitle {
-      font-size: 13px;
-      color: #94a3b8;
-      margin: 0;
-    }
+        .loader-bar-wrap {
+            width: 200px;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        .loader-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #1a6fff, #7ecfff);
+            border-radius: 2px;
+            animation: loadBar 1.8s ease forwards;
+        }
+        @keyframes loadBar {
+            0%   { width: 0%; }
+            60%  { width: 80%; }
+            100% { width: 100%; }
+        }
 
-    .metric-card {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      transition: transform 0.2s ease, background 0.2s ease;
-    }
+        .loader-sub {
+            font-size: 0.65rem;
+            letter-spacing: 0.25em;
+            color: rgba(255,255,255,0.3);
+        }
 
-    .metric-card:hover {
-      transform: translateY(-2px);
-      background: rgba(255, 255, 255, 0.08);
-    }
+        /* ── HUD Overlays ── */
+        #hud {
+            position: fixed; inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
 
-    .metric-value {
-      font-size: 28px;
-      font-weight: 800;
-      color: var(--accent);
-    }
+        /* Corner brackets */
+        .corner {
+            position: absolute;
+            width: 40px; height: 40px;
+            border-color: rgba(126,207,255,0.35);
+            border-style: solid;
+        }
+        .corner.tl { top: 20px; left: 20px;  border-width: 1px 0 0 1px; }
+        .corner.tr { top: 20px; right: 20px; border-width: 1px 1px 0 0; }
+        .corner.bl { bottom: 20px; left: 20px;  border-width: 0 0 1px 1px; }
+        .corner.br { bottom: 20px; right: 20px; border-width: 0 1px 1px 0; }
 
-    .metric-label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #cbd5e1;
-    }
+        /* Title plate */
+        .hud-title {
+            position: absolute;
+            top: 28px; left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.4em;
+            color: rgba(126,207,255,0.7);
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
 
-    /* Loading Overlay */
-    #loader {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #000;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      color: white;
-      transition: opacity 0.5s ease;
-    }
-    
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid rgba(255, 255, 255, 0.1);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
+        /* Bottom status bar */
+        .hud-status {
+            position: absolute;
+            bottom: 28px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.25);
+            white-space: nowrap;
+        }
 
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-  </style>
+        /* Lat/Lon readout */
+        .hud-coords {
+            position: absolute;
+            bottom: 28px; right: 32px;
+            text-align: right;
+        }
+        .hud-coords span {
+            display: block;
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            color: rgba(126,207,255,0.45);
+            line-height: 1.6;
+        }
+
+        /* Scanline texture */
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
 </head>
 <body>
 
-<!-- Loading Screen -->
-<div id="loader">
-  <div class="spinner"></div>
-  <h2>Computing T+1 Forecast...</h2>
-  <p style="color: #64748b;">Running PyTorch ConvLSTM Engine</p>
-</div>
+    <!-- Loading screen -->
+    <div id="loading-screen">
+        <div class="loader-title">MugizhNokku Core</div>
+        <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+        <div class="loader-sub" id="loader-text">Initialising 3D Assets...</div>
+    </div>
 
-<!-- 3D Engine -->
-<div id="cesiumContainer"></div>
+    <!-- HUD -->
+    <div id="hud">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="hud-title">ConvLSTM T+1 Forecast</div>
+        <div class="hud-status">Drag to rotate &nbsp;·&nbsp; Scroll to zoom</div>
+        <div class="hud-coords">
+            <span id="coord-lat">LAT —°</span>
+            <span id="coord-lon">LON —°</span>
+            <span id="coord-rain" style="color: #38bdf8; font-weight: bold; margin-top: 8px;">RAIN — mm</span>
+        </div>
+    </div>
 
-<!-- UI Dashboard -->
-<div class="dashboard-panel">
-  <div>
-    <h1 class="title">முகில்நோக்கு</h1>
-    <p class="subtitle">Digital Twin Architecture v2.0</p>
-  </div>
-  
-  <div class="metric-card">
-    <div class="metric-label">Model Architecture</div>
-    <div style="font-size: 18px; font-weight: 600; color: white;">ConvLSTM 3D</div>
-  </div>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
 
-  <div class="metric-card">
-    <div class="metric-label">Active Rain Cells</div>
-    <div class="metric-value" id="cellCount">--</div>
-  </div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-  <div class="metric-card">
-    <div class="metric-label">Peak Forecast</div>
-    <div class="metric-value" id="peakRain">--<span style="font-size:14px; color: #94a3b8;"> mm</span></div>
-  </div>
-  
-  <p style="font-size: 11px; color: #64748b; margin-top: auto; line-height: 1.4;">Hardware acceleration active.<br>Native REST API connection established.</p>
-</div>
+        // ── Scene ──────────────────────────────────────────────
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
+        camera.position.z = 2.8;
 
-<script>
-  // 1. Initialize Cesium without limits
-  const viewer = new Cesium.Viewer("cesiumContainer", {
-    animation: false, timeline: false, fullscreenButton: false,
-    baseLayerPicker: false, homeButton: false, sceneModePicker: false,
-    navigationHelpButton: false, geocoder: false,
-    imageryProvider: new Cesium.UrlTemplateImageryProvider({
-        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        credit: 'Esri World Imagery'
-    })
-  });
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
 
-  // Focus on India immediately
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(76.0, 14.0, 4000000),
-    duration: 0
-  });
+        // ── Earth ──────────────────────────────────────────────
+        const textureLoader = new THREE.TextureLoader();
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
 
-  // 2. Fetch AI predictions natively via REST API
-  fetch('/api/predict')
-    .then(response => response.json())
-    .then(json => {
-      const data = json.data;
-      console.log(`Received ${data.length} valid prediction points.`);
-      
-      let maxRain = 0;
+        const earthTexture = textureLoader.load(
+            'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
+            () => {
+                document.getElementById('loader-text').innerText = "Fetching AI Predictions...";
+                loadForecastData();
+            }
+        );
 
-      // Render ultra-fast 3D cylinders
-      data.forEach(p => {
-        if (p.rain > maxRain) maxRain = p.rain;
+        const earth = new THREE.Mesh(
+            new THREE.SphereGeometry(1, 64, 64),
+            new THREE.MeshPhongMaterial({
+                map: earthTexture,
+                specular: new THREE.Color(0x334455),
+                shininess: 20
+            })
+        );
+        earthGroup.add(earth);
 
-        viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.h / 2),
-          cylinder: {
-            length: p.h < 100 ? 100 : p.h,
-            topRadius: 4000,
-            bottomRadius: 10000,
-            material: new Cesium.ColorMaterialProperty(
-              Cesium.Color.fromBytes(p.r, p.g, p.b, 210)
-            ),
-            outline: false,
-          },
-          description: `<h2>Rainfall: ${p.rain.toFixed(1)} mm</h2><p>Lat: ${p.lat}°N | Lon: ${p.lon}°E</p>`,
+        // ── Atmosphere ─────────────────────────────────────────
+        const atmos = new THREE.Mesh(
+            new THREE.SphereGeometry(1.04, 64, 64),
+            new THREE.MeshPhongMaterial({
+                color: 0x4fa1c6,
+                transparent: true,
+                opacity: 0.13,
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            })
+        );
+        scene.add(atmos);
+
+        // Outer glow ring
+        const glowMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(1.08, 64, 64),
+            new THREE.MeshPhongMaterial({
+                color: 0x1a6fff,
+                transparent: true,
+                opacity: 0.04,
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            })
+        );
+        scene.add(glowMesh);
+
+        // ── Starfield ──────────────────────────────────────────
+        const starCount = 3000;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 120;
+
+        const starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, transparent: true, opacity: 0.75 }));
+        scene.add(stars);
+
+        // ── Lights ─────────────────────────────────────────────
+        scene.add(new THREE.AmbientLight(0x223366, 0.5));
+        const sun = new THREE.DirectionalLight(0xfff5e0, 2.0);
+        sun.position.set(5, 3, 5);
+        scene.add(sun);
+
+        const fill = new THREE.DirectionalLight(0x1a3060, 0.3);
+        fill.position.set(-5, -2, -3);
+        scene.add(fill);
+
+        // ── Controls ───────────────────────────────────────────
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.04;
+        controls.enablePan = false;
+        controls.minDistance = 1.1;
+        controls.maxDistance = 5.5;
+        controls.autoRotate = true; // Slowly rotate Earth
+        controls.autoRotateSpeed = 0.5;
+
+        // ── Coordinate Math ────────────────────────────────────
+        function latLonToVector3(lat, lon, radius) {
+            const phi = lat * Math.PI / 180;
+            const theta = lon * Math.PI / 180;
+            const x = radius * Math.cos(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi);
+            const z = radius * Math.cos(phi) * Math.sin(theta);
+            return new THREE.Vector3(x, y, z);
+        }
+
+        // ── Fetch AI Forecast ──────────────────────────────────
+        const rainMeshes = [];
+
+        function loadForecastData() {
+            fetch('/api/predict')
+                .then(res => res.json())
+                .then(json => {
+                    const data = json.data;
+                    
+                    data.forEach(p => {
+                        const radius = 1.0;
+                        const pos = latLonToVector3(p.lat, p.lon, radius);
+                        
+                        // Scale cylinder height
+                        const cylinderHeight = p.rain * 0.005; 
+                        const geometry = new THREE.CylinderGeometry(0.0015, 0.0015, cylinderHeight, 5);
+                        
+                        // Move geometry so origin is at the bottom of the cylinder
+                        geometry.translate(0, cylinderHeight / 2, 0);
+
+                        const material = new THREE.MeshBasicMaterial({ 
+                            color: new THREE.Color(`rgb(${p.r}, ${p.g}, ${p.b})`),
+                            transparent: true,
+                            opacity: 0.8
+                        });
+                        
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.position.copy(pos);
+                        
+                        // Point the cylinder straight out from the globe
+                        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
+                        
+                        mesh.userData = { rain: p.rain, lat: p.lat, lon: p.lon };
+                        rainMeshes.push(mesh);
+                        earthGroup.add(mesh);
+                    });
+
+                    // Hide Loader
+                    const screen = document.getElementById('loading-screen');
+                    if (screen) screen.classList.add('hidden');
+
+                    // Focus on India (Lat ~20, Lon ~80)
+                    camera.position.copy(latLonToVector3(20, 80, 2.0));
+                    controls.target.copy(latLonToVector3(20, 80, 0));
+                    controls.update();
+                })
+                .catch(err => {
+                    document.getElementById('loader-text').innerText = "Failed to load AI data.";
+                    console.error(err);
+                });
+        }
+
+        // ── HUD coord readout ──────────────────────────────────
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const latEl  = document.getElementById('coord-lat');
+        const lonEl  = document.getElementById('coord-lon');
+        const rainEl = document.getElementById('coord-rain');
+
+        window.addEventListener('mousemove', e => {
+            mouse.x =  (e.clientX / innerWidth)  * 2 - 1;
+            mouse.y = -(e.clientY / innerHeight) * 2 + 1;
         });
-      });
 
-      // Update UI Metrics
-      document.getElementById('cellCount').innerText = data.length.toLocaleString();
-      document.getElementById('peakRain').innerHTML = maxRain.toFixed(1) + '<span style="font-size:14px; color:#94a3b8"> mm</span>';
+        function updateCoords() {
+            raycaster.setFromCamera(mouse, camera);
+            
+            // First check if hovering over rain cylinder
+            const rainHits = raycaster.intersectObjects(rainMeshes);
+            if (rainHits.length > 0) {
+                const data = rainHits[0].object.userData;
+                latEl.textContent = `LAT ${data.lat.toFixed(1)}°`;
+                lonEl.textContent = `LON ${data.lon.toFixed(1)}°`;
+                rainEl.textContent = `RAIN ${data.rain.toFixed(1)} mm`;
+                return;
+            }
 
-      // Hide Loader & swoop in dynamically
-      document.getElementById('loader').style.opacity = '0';
-      setTimeout(() => document.getElementById('loader').remove(), 500);
+            // Otherwise check Earth surface
+            const hits = raycaster.intersectObject(earth);
+            if (hits.length > 0) {
+                const p = hits[0].point.clone().normalize();
+                // Inverse coordinate math
+                const lat = (Math.asin(p.y) * 180 / Math.PI).toFixed(1);
+                const lon = (Math.atan2(p.z, p.x) * 180 / Math.PI).toFixed(1);
+                latEl.textContent = `LAT ${lat}°`;
+                lonEl.textContent = `LON ${lon}°`;
+                rainEl.textContent = `RAIN — mm`;
+            } else {
+                latEl.textContent = `LAT —°`;
+                lonEl.textContent = `LON —°`;
+                rainEl.textContent = `RAIN — mm`;
+            }
+        }
 
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(76.0, 10.0, 1800000),
-        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
-        duration: 3.0 // Cinematic sweep!
-      });
-    })
-    .catch(err => {
-      console.error("API Error:", err);
-      document.getElementById('loader').innerHTML = `<h2 style="color:#ef4444">Connection Failed</h2><p>${err}</p>`;
-    });
+        // ── Animate ────────────────────────────────────────────
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
 
-</script>
+            // Slower star/atmosphere rotation relative to earth
+            stars.rotation.y  -= 0.008 * dt;
+            atmos.rotation.y  += 0.01 * dt;
+
+            updateCoords();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // ── Resize ─────────────────────────────────────────────
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+    </script>
 </body>
 </html>
