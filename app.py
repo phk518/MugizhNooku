@@ -141,62 +141,42 @@ if st.button("🚀 Run Twin Simulation", use_container_width=True):
 
         st.divider()
 
-        # ── Dual-Tab Visualization ───────────────────────────────────────
-        tab1, tab2 = st.tabs(["🌐 CesiumJS 3D Globe", "📊 PyDeck Column Map"])
+        # ── Three.js Native 3D Globe ───────────────────────────────────────
+        st.divider()
+        st.subheader("🌐 Three.js Native 3D Globe")
 
-        # ── TAB 1: CesiumJS 3D Globe ─────────────────────────────────────
-        with tab1:
-            # Interpolate down to every 4th point for performance (32x34 points)
-            step = 4
-            cesium_points = []
-            for i in range(0, 129, step):
-                for j in range(0, 135, step):
-                    lat_v = round(i * 0.25 + 6.5, 3)
-                    lon_v = round(j * 0.25 + 66.5, 3)
-                    rain  = float(prediction[i, j])
-                    height = rain * 800  # exaggerate for visibility
-                    # Colour: blue (low) → red (high) in 0-255 RGB
+        # 1. Prepare JSON payload
+        # Interpolate down to every 3rd point for performance
+        step = 3
+        three_points = []
+        for i in range(0, 129, step):
+            for j in range(0, 135, step):
+                lat_v = round(i * 0.25 + 6.5, 3)
+                lon_v = round(j * 0.25 + 66.5, 3)
+                rain  = float(prediction[i, j])
+                
+                if rain > 5.0:
                     r = min(255, int(rain * 2.5))
                     g = max(0, 120 - int(rain))
                     b = max(0, 200 - int(rain * 2))
-                    cesium_points.append(
-                        f"{{lon:{lon_v}, lat:{lat_v}, h:{height:.1f}, "
-                        f"r:{r}, g:{g}, b:{b}, rain:{rain:.1f}}}"
-                    )
+                    three_points.append({
+                        "lat": lat_v, "lon": lon_v, "rain": rain,
+                        "r": r, "g": g, "b": b
+                    })
 
-            cesium_js_data = ",\n".join(cesium_points)
+        json_data = json.dumps(three_points)
 
-            # Load separated HTML asset to avoid f-string injection risks
-            html_path = _BASE / 'web' / 'cesium_viewer.html'
-            with open(html_path, 'r', encoding='utf-8') as f:
-                cesium_html = f.read()
-            
-            # Safely inject dynamic data
-            cesium_html = cesium_html.replace('__CESIUM_POINTS__', cesium_js_data)
-            cesium_html = cesium_html.replace('__CESIUM_TOKEN__', CESIUM_TOKEN)
+        # 2. Load the HTML template
+        html_path = _BASE / 'static' / 'globe.html'
+        with open(html_path, 'r', encoding='utf-8') as f:
+            globe_html = f.read()
+        
+        # 3. Inject the data securely via JSON (avoiding f-string issues)
+        globe_html = globe_html.replace('/*_INJECT_DATA_*/', json_data)
 
-            components.html(cesium_html, height=520)
-
-        # ── TAB 2: PyDeck Column Map ──────────────────────────────────────
-        with tab2:
-            layer = pdk.Layer(
-                'ColumnLayer', data=df,
-                get_position='[lon, lat]',
-                get_elevation='rainfall_mm',
-                elevation_scale=80, radius=5500,
-                get_fill_color='color',
-                pickable=True, extruded=True, auto_highlight=True,
-            )
-            view_state = pdk.ViewState(
-                latitude=14.0, longitude=76.0, zoom=5, pitch=52, bearing=-10
-            )
-            tooltip = {"text": "Lat: {lat}\nLon: {lon}\nRainfall: {rainfall_mm} mm"}
-            st.pydeck_chart(
-                pdk.Deck(
-                    layers=[layer], initial_view_state=view_state, tooltip=tooltip,
-                    map_style='mapbox://styles/mapbox/dark-v10'
-                )
-            )
+        # 4. Render in Streamlit!
+        st.success("ConvLSTM Inference Complete. Rendering 3D Environment...")
+        components.html(globe_html, height=750, scrolling=False)
 
 else:
     st.info(
