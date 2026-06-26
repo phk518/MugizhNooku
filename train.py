@@ -21,6 +21,15 @@ def main():
     print("Loading data...")
     use_mock = True
     
+    try:
+        from data_utils import load_real_data
+        print("Attempting to ingest real IMD binary data...")
+        ds_merged = load_real_data(grd_folder_path='./data/raw', year=2023)
+        use_mock = False
+        print("Successfully loaded and harmonized real data!")
+    except Exception as e:
+        print(f"Failed to load real data ({e}).")
+        
     if use_mock:
         print("Using Mock Tensor Fallback for dry-run validation.")
         days = 366
