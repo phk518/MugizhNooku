@@ -1,170 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Interactive Globe</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>3D Interactive Globe — Improved</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Mono:ital@0;1&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+        html,body { height: 100%; }
         body {
-            overflow: hidden;
             background: #000;
-            font-family: 'Space Mono', monospace;
             color: #fff;
+            font-family: 'Space Mono', monospace;
             cursor: grab;
+            overflow: hidden;
         }
         body:active { cursor: grabbing; }
+        canvas { display:block; width:100%; height:100%; }
 
-        canvas { display: block; }
-
-        /* ── Loading Screen ── */
+        /* Loading Screen */
         #loading-screen {
-            position: fixed; inset: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            transition: opacity 0.8s ease, visibility 0.8s ease;
+            position: fixed; inset:0;
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            background: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.9) 100%);
+            z-index:100;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
         }
-        #loading-screen.hidden { opacity: 0; visibility: hidden; }
+        #loading-screen[aria-hidden="true"] { opacity:0; visibility:hidden; pointer-events:none; }
+        .loader-title { font-family: 'Orbitron', monospace; font-size:clamp(1rem,3vw,1.6rem); font-weight:700; letter-spacing:0.28em; color:#7ecfff; text-transform:uppercase; margin-bottom:1.5rem; text-shadow:0 0 18px rgba(126,207,255,0.45);}
+        .loader-bar-wrap { width:220px; height:3px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin-bottom:0.9rem;}
+        .loader-bar { height:100%; width:0%; background:linear-gradient(90deg,#1a6fff,#7ecfff); border-radius:3px; transition: width 0.5s ease; }
+        .loader-sub { font-size:0.7rem; letter-spacing:0.18em; color:rgba(255,255,255,0.28); }
 
-        .loader-title {
-            font-family: 'Orbitron', monospace;
-            font-size: clamp(1rem, 3vw, 1.6rem);
-            font-weight: 700;
-            letter-spacing: 0.3em;
-            color: #7ecfff;
-            text-transform: uppercase;
-            margin-bottom: 2rem;
-            text-shadow: 0 0 20px rgba(126,207,255,0.5);
-        }
+        /* HUD */
+        #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+        .corner { position:absolute; width:40px; height:40px; border-color:rgba(126,207,255,0.35); border-style:solid; }
+        .corner.tl { top:18px; left:18px; border-width:1px 0 0 1px; }
+        .corner.tr { top:18px; right:18px; border-width:1px 1px 0 0; }
+        .corner.bl { bottom:18px; left:18px; border-width:0 0 1px 1px; }
+        .corner.br { bottom:18px; right:18px; border-width:0 1px 1px 0; }
 
-        .loader-bar-wrap {
-            width: 200px;
-            height: 2px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-        }
-        .loader-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #1a6fff, #7ecfff);
-            border-radius: 2px;
-            animation: loadBar 1.8s ease forwards;
-        }
-        @keyframes loadBar {
-            0%   { width: 0%; }
-            60%  { width: 80%; }
-            100% { width: 100%; }
-        }
-
-        .loader-sub {
-            font-size: 0.65rem;
-            letter-spacing: 0.25em;
-            color: rgba(255,255,255,0.3);
-        }
-
-        /* ── HUD Overlays ── */
-        #hud {
-            position: fixed; inset: 0;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        /* Corner brackets */
-        .corner {
-            position: absolute;
-            width: 40px; height: 40px;
-            border-color: rgba(126,207,255,0.35);
-            border-style: solid;
-        }
-        .corner.tl { top: 20px; left: 20px;  border-width: 1px 0 0 1px; }
-        .corner.tr { top: 20px; right: 20px; border-width: 1px 1px 0 0; }
-        .corner.bl { bottom: 20px; left: 20px;  border-width: 0 0 1px 1px; }
-        .corner.br { bottom: 20px; right: 20px; border-width: 0 1px 1px 0; }
-
-        /* Title plate */
-        .hud-title {
-            position: absolute;
-            top: 28px; left: 50%;
-            transform: translateX(-50%);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.4em;
-            color: rgba(126,207,255,0.7);
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        /* Bottom status bar */
-        .hud-status {
-            position: absolute;
-            bottom: 28px; left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.6rem;
-            letter-spacing: 0.2em;
-            color: rgba(255,255,255,0.25);
-            white-space: nowrap;
-        }
-
-        /* Lat/Lon readout */
-        .hud-coords {
-            position: absolute;
-            bottom: 28px; right: 32px;
-            text-align: right;
-        }
-        .hud-coords span {
-            display: block;
-            font-size: 0.6rem;
-            letter-spacing: 0.15em;
-            color: rgba(126,207,255,0.45);
-            line-height: 1.6;
-        }
+        .hud-title { position:absolute; top:26px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-size:0.72rem; font-weight:700; letter-spacing:0.36em; color:rgba(126,207,255,0.76); text-transform:uppercase; white-space:nowrap; pointer-events:none; }
+        .hud-status { position:absolute; bottom:26px; left:50%; transform:translateX(-50%); font-size:0.62rem; letter-spacing:0.18em; color:rgba(255,255,255,0.26); white-space:nowrap; }
+        .hud-coords { position:absolute; bottom:24px; right:28px; text-align:right; pointer-events:none; }
+        .hud-coords span { display:block; font-size:0.62rem; letter-spacing:0.12em; color:rgba(126,207,255,0.44); line-height:1.6; }
 
         /* Scanline texture */
-        body::after {
-            content: '';
-            position: fixed; inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.03) 2px,
-                rgba(0,0,0,0.03) 4px
-            );
-            pointer-events: none;
-            z-index: 5;
+        body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px); pointer-events:none; z-index:5; }
+
+        /* Responsive tweak */
+        @media (max-width:520px) {
+            .hud-title { font-size:0.6rem; letter-spacing:0.28em; top:20px; }
+            .hud-coords span { font-size:0.55rem; }
+            .loader-bar-wrap { width:160px; }
         }
     </style>
 </head>
 <body>
-
-    <!-- Loading screen -->
-    <div id="loading-screen">
+    <div id="loading-screen" role="status" aria-live="polite" aria-hidden="false">
         <div class="loader-title">Terra Viewer</div>
-        <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
-        <div class="loader-sub" id="loader-text">Initialising 3D Assets...</div>
+        <div class="loader-bar-wrap"><div class="loader-bar" id="loader-bar"></div></div>
+        <div class="loader-sub" id="loader-text">Initializing 3D assets…</div>
     </div>
 
-    <!-- HUD -->
-    <div id="hud">
-        <div class="corner tl"></div>
-        <div class="corner tr"></div>
-        <div class="corner bl"></div>
-        <div class="corner br"></div>
+    <div id="hud" aria-hidden="false">
+        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
         <div class="hud-title">Earth — Sol III</div>
-        <div class="hud-status">Drag to rotate &nbsp;·&nbsp; Scroll to zoom</div>
-        <div class="hud-coords">
+        <div class="hud-status">Drag to rotate · Scroll to zoom</div>
+        <div class="hud-coords" aria-hidden="false">
             <span id="coord-lat">LAT —°</span>
             <span id="coord-lon">LON —°</span>
-            <span id="coord-rain" style="color: #7ecfff; font-weight: bold; margin-top: 8px;">RAIN — mm</span>
+            <span id="coord-rain" style="color:#7ecfff; font-weight:700; margin-top:8px;">RAIN — mm</span>
         </div>
     </div>
 
@@ -178,242 +84,304 @@
     </script>
 
     <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // ── Scene ──────────────────────────────────────────────
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
-        camera.position.z = 2.8;
+    // Basic scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 1000);
+    camera.position.set(2.5, 0.9, 2.5);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(innerWidth, innerHeight);
-        renderer.setPixelRatio(devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    document.body.appendChild(renderer.domElement);
 
-        // ── Textures ───────────────────────────────────────────
-        const textureLoader = new THREE.TextureLoader();
-        
-        // Base64 injected texture - guarantees 100% load success inside Streamlit sandbox!
-        const textureUri = `/*_INJECT_TEXTURE_*/`;
-        let earthTexture = null;
-        if (textureUri !== '/*_INJECT_TEXTURE_*/') {
-            earthTexture = textureLoader.load(textureUri, () => {
-                const screen = document.getElementById('loading-screen');
-                if (screen) screen.classList.add('hidden');
-            });
+    // Lighting: ambient + camera-facing directional (not parented to camera)
+    scene.add(new THREE.AmbientLight(0x445577, 0.75));
+    const cameraLight = new THREE.DirectionalLight(0xffffff, 1.25);
+    scene.add(cameraLight);
+
+    // Grouping
+    const earthGroup = new THREE.Group();
+    scene.add(earthGroup);
+
+    // Texture loader with fallback timeout
+    const textureLoader = new THREE.TextureLoader();
+    let earthTexture = null;
+    let textureLoaded = false;
+    const textureUri = `/*_INJECT_TEXTURE_*/`;
+    function hideLoaderSuccess(msg) {
+        const screen = document.getElementById('loading-screen');
+        const bar = document.getElementById('loader-bar');
+        const txt = document.getElementById('loader-text');
+        if (bar) bar.style.width = '100%';
+        if (txt) txt.textContent = msg || 'Ready';
+        if (screen) {
+            screen.setAttribute('aria-hidden', 'true');
         }
+        setTimeout(() => {
+            if (screen && screen.parentNode) screen.parentNode.removeChild(screen);
+        }, 650);
+    }
 
-        // ── Earth ──────────────────────────────────────────────
-        const earthGroup = new THREE.Group();
-        scene.add(earthGroup);
-
-        const earth = new THREE.Mesh(
-            new THREE.SphereGeometry(1, 64, 64),
-            new THREE.MeshPhongMaterial({
-                map: earthTexture,
-                color: 0x2244aa, // Vibrant blue base
-                emissive: 0x051525, // Slight glow
-                specular: new THREE.Color(0x77aadd),
-                shininess: 30
-            })
+    if (textureUri && textureUri !== '/*_INJECT_TEXTURE_*/') {
+        textureLoader.load(textureUri,
+            tex => { earthTexture = tex; textureLoaded = true; hideLoaderSuccess('Textures loaded'); },
+            undefined,
+            err => { console.warn('Texture failed', err); hideLoaderSuccess('Texture failed — continuing'); }
         );
-        earthGroup.add(earth);
+    } else {
+        // No texture injected; keep a short visual timeout but do not block
+        setTimeout(() => { hideLoaderSuccess('No texture — procedural fallback'); }, 1200);
+    }
 
-        // Execute data rendering immediately, do not wait for texture!
-        // This guarantees the AI rainfall columns always appear even if the Earth texture is blocked by Streamlit's iframe CORS policy.
-        setTimeout(renderRainData, 100);
+    // Earth mesh
+    const earthMat = new THREE.MeshPhongMaterial({
+        map: earthTexture,
+        color: 0x223c7a,
+        emissive: 0x051525,
+        specular: new THREE.Color(0x77aadd),
+        shininess: 18
+    });
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), earthMat);
+    earth.castShadow = false;
+    earth.receiveShadow = false;
+    earthGroup.add(earth);
 
-        // ── Atmosphere ─────────────────────────────────────────
-        const atmos = new THREE.Mesh(
-            new THREE.SphereGeometry(1.04, 64, 64),
-            new THREE.MeshPhongMaterial({
-                color: 0x4fa1c6,
-                transparent: true,
-                opacity: 0.13,
-                side: THREE.BackSide,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            })
-        );
-        scene.add(atmos);
+    // Atmosphere and glow
+    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.04, 64, 64),
+        new THREE.MeshPhongMaterial({ color:0x4fa1c6, transparent:true, opacity:0.12, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false })
+    );
+    scene.add(atmos);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(1.08, 64, 64),
+        new THREE.MeshPhongMaterial({ color:0x1a6fff, transparent:true, opacity:0.035, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false })
+    );
+    scene.add(glow);
 
-        // Outer glow ring
-        const glowMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(1.08, 64, 64),
-            new THREE.MeshPhongMaterial({
-                color: 0x1a6fff,
-                transparent: true,
-                opacity: 0.04,
-                side: THREE.BackSide,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            })
-        );
-        scene.add(glowMesh);
-
-        // ── Starfield ──────────────────────────────────────────
-        const starCount = 3000;
-        const starPos = new Float32Array(starCount * 3);
-        for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 120;
-
-        const starGeo = new THREE.BufferGeometry();
-        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.06, transparent: true, opacity: 0.75 }));
-        scene.add(stars);
-
-        // ── Lights ─────────────────────────────────────────────
-        scene.add(new THREE.AmbientLight(0x445577, 0.8)); // Brighter ambient
-        
-        // Attach a directional light to the camera so the side you look at is ALWAYS brightly lit
-        const cameraLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        camera.add(cameraLight);
-        scene.add(camera); // Must add camera to scene for its light to work
-
-        // ── Controls ───────────────────────────────────────────
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.04;
-        controls.enablePan = false;
-        controls.minDistance = 1.1;
-        controls.maxDistance = 5.5;
-        controls.autoRotate = false; // Stop auto-rotation so India stays in focus
-
-        // ── Coordinate Math ────────────────────────────────────
-        function latLonToVector3(lat, lon, radius) {
-            // Standard Three.js SphereGeometry equirectangular mapping formula
-            const phi   = (90 - lat) * (Math.PI / 180);
-            const theta = (lon + 180) * (Math.PI / 180);
-
-            const x = -(radius * Math.sin(phi) * Math.cos(theta));
-            const z = (radius * Math.sin(phi) * Math.sin(theta));
-            const y = (radius * Math.cos(phi));
-
-            return new THREE.Vector3(x, y, z);
+    // Starfield - single BufferGeometry for performance
+    (function createStars() {
+        const starCount = 2000;
+        const positions = new Float32Array(starCount * 3);
+        const spread = 120;
+        for (let i=0;i<starCount;i++){
+            const i3 = i*3;
+            positions[i3]   = (Math.random()-0.5) * spread;
+            positions[i3+1] = (Math.random()-0.5) * spread;
+            positions[i3+2] = (Math.random()-0.5) * spread;
         }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const mat = new THREE.PointsMaterial({ color:0xffffff, size:0.06, transparent:true, opacity:0.8 });
+        const pts = new THREE.Points(geo, mat);
+        scene.add(pts);
+    })();
 
-        // ── Data Injection ─────────────────────────────────────
-        const rainMeshes = [];
-        
-        function renderRainData() {
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.04;
+    controls.enablePan = false;
+    controls.minDistance = 1.05;
+    controls.maxDistance = 8;
+    controls.autoRotate = false;
+
+    // Coordinate math (robust)
+    function latLonToVector3(lat, lon, radius = 1) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lon + 180) * (Math.PI / 180);
+        const x = -(radius * Math.sin(phi) * Math.cos(theta));
+        const z = (radius * Math.sin(phi) * Math.sin(theta));
+        const y = (radius * Math.cos(phi));
+        return new THREE.Vector3(x, y, z);
+    }
+
+    // Pool common cylinder geometries for perf
+    const cylinderPool = new Map();
+    function getCylinder(height) {
+        const key = Math.round(height * 1000);
+        if (cylinderPool.has(key)) return cylinderPool.get(key).clone();
+        const h = Math.max(height, 0.01);
+        const g = new THREE.CylinderGeometry(0.015, 0.015, h, 6);
+        g.translate(0, h/2, 0);
+        cylinderPool.set(key, g);
+        return g.clone();
+    }
+
+    // Data rendering
+    const rainMeshes = [];
+    function safeColorFromRgb(r,g,b) {
+        r = Math.max(0, Math.min(255, Math.round(r)));
+        g = Math.max(0, Math.min(255, Math.round(g)));
+        b = Math.max(0, Math.min(255, Math.round(b)));
+        return (r << 16) | (g << 8) | b;
+    }
+
+    function renderRainData() {
+        const injected = `/*_INJECT_DATA_*/`;
+        let data = [];
+        if (injected && injected !== '/*_INJECT_DATA_*/') {
             try {
-                // We will inject a JSON string here from Python via string replace
-                const dataStr = `/*_INJECT_DATA_*/`;
-                
-                let data = [];
-                if (dataStr !== '/*_INJECT_DATA_*/') {
-                    data = JSON.parse(dataStr);
-                }
-                
-                data.forEach(p => {
-                    const radius = 1.0;
-                    const pos = latLonToVector3(p.lat, p.lon, radius);
-                    
-                    // Scale cylinder height - REASONABLE visibility so camera isn't inside it
-                    const cylinderHeight = Math.max(p.rain * 0.001, 0.01); 
-                    const geometry = new THREE.CylinderGeometry(0.015, 0.015, cylinderHeight, 6);
-                    geometry.translate(0, cylinderHeight / 2, 0);
-
-                    const material = new THREE.MeshBasicMaterial({ 
-                        color: (p.r << 16) | (p.g << 8) | p.b, // Bitwise color is 100% safe
-                        transparent: true,
-                        opacity: 0.9,
-                        side: THREE.DoubleSide // Guarantee visibility from all angles
-                    });
-                    
-                    const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.copy(pos);
-                    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
-                    
-                    mesh.userData = { rain: p.rain, lat: p.lat, lon: p.lon };
-                    rainMeshes.push(mesh);
-                    earthGroup.add(mesh);
-                });
-
-                // Always focus camera on India (Lat 20, Lon 78) at a safe distance
-                const indiaPos = latLonToVector3(20, 78, 2.5);
-                const surfacePos = latLonToVector3(20, 78, 0);
-                camera.position.copy(indiaPos);
-                controls.target.copy(surfacePos);
-                controls.update();
-
-                // If successful, put a success marker on the HUD
-                document.getElementById('coord-rain').textContent = `SUCCESS: ${data.length} pts`;
+                data = JSON.parse(injected);
             } catch (err) {
-                // If it fails, print the exact Javascript error to the HUD so it shows in the screenshot
-                document.getElementById('coord-lat').textContent = "JS ERR:";
-                document.getElementById('coord-lon').textContent = err.message.substring(0, 30);
-                document.getElementById('coord-rain').textContent = "CRASH";
-            }
-        }
-
-        // ── HUD coord readout ──────────────────────────────────
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        const latEl  = document.getElementById('coord-lat');
-        const lonEl  = document.getElementById('coord-lon');
-        const rainEl = document.getElementById('coord-rain');
-
-        window.addEventListener('mousemove', e => {
-            mouse.x =  (e.clientX / innerWidth)  * 2 - 1;
-            mouse.y = -(e.clientY / innerHeight) * 2 + 1;
-        });
-
-        function updateCoords() {
-            raycaster.setFromCamera(mouse, camera);
-            
-            // 1. Check if hovering over a rain cylinder first
-            const rainHits = raycaster.intersectObjects(rainMeshes);
-            if (rainHits.length > 0) {
-                const d = rainHits[0].object.userData;
-                latEl.textContent = `LAT ${d.lat.toFixed(1)}°`;
-                lonEl.textContent = `LON ${d.lon.toFixed(1)}°`;
-                rainEl.textContent = `RAIN ${d.rain.toFixed(1)} mm`;
+                document.getElementById('coord-lat').textContent = 'DATA ERR';
+                document.getElementById('coord-lon').textContent = err.message.slice(0,30);
+                document.getElementById('coord-rain').textContent = 'CRASH';
+                console.error('JSON parse failed', err);
                 return;
             }
-
-            // 2. Otherwise check Earth surface
-            const hits = raycaster.intersectObject(earth);
-            if (hits.length > 0) {
-                const p = hits[0].point.clone().normalize();
-                const localP = p.clone().applyMatrix4(earthGroup.matrixWorld.clone().invert());
-
-                // Inverse formula for lat/lon
-                const lat = 90 - (Math.acos(localP.y) * 180 / Math.PI);
-                let lon = (Math.atan2(localP.z, -localP.x) * 180 / Math.PI) - 180;
-                if (lon < -180) lon += 360;
-
-                latEl.textContent = `LAT ${lat.toFixed(1)}°`;
-                lonEl.textContent = `LON ${lon.toFixed(1)}°`;
-                rainEl.textContent = `RAIN — mm`;
-            } else {
-                latEl.textContent = `LAT —°`;
-                lonEl.textContent = `LON —°`;
-                rainEl.textContent = `RAIN — mm`;
-            }
+        } else {
+            // No data injected — create a small demo set so UI demonstrates behavior
+            data = [
+                { lat:20, lon:78, rain:12.4, r:30, g:150, b:255 }, // India demo
+                { lat:51.5, lon:-0.1, rain:8.2, r:100, g:200, b:255 }, // London
+                { lat:-33.9, lon:151.2, rain:4.1, r:50, g:180, b:255 } // Sydney
+            ];
         }
 
-        // ── Animate ────────────────────────────────────────────
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const dt = clock.getDelta();
+        // Remove previous rain meshes
+        rainMeshes.forEach(m => { if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); earthGroup.remove(m); });
+        rainMeshes.length = 0;
 
-            earthGroup.rotation.y += 0.05 * dt; // Slow earth rotation
-            stars.rotation.y  -= 0.008 * dt;
-            atmos.rotation.y  += 0.01 * dt;
-
-            updateCoords();
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = innerWidth / innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(innerWidth, innerHeight);
+        data.forEach(p => {
+            const radius = 1.0;
+            const pos = latLonToVector3(p.lat, p.lon, radius);
+            const cylinderHeight = Math.min(Math.max(p.rain * 0.0015, 0.01), 0.8);
+            const geom = getCylinder(cylinderHeight);
+            const colorInt = safeColorFromRgb(p.r ?? 30, p.g ?? 150, p.b ?? 255);
+            const material = new THREE.MeshBasicMaterial({ color: colorInt, transparent:true, opacity:0.92, side:THREE.DoubleSide });
+            const mesh = new THREE.Mesh(geom, material);
+            mesh.position.copy(pos);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), pos.clone().normalize());
+            mesh.userData = { rain: p.rain, lat: p.lat, lon: p.lon };
+            earthGroup.add(mesh);
+            rainMeshes.push(mesh);
         });
+
+        // Focus camera on India-ish if data exists
+        const indiaPos = latLonToVector3(20,78,2.6);
+        const surfacePos = latLonToVector3(20,78,0);
+        camera.position.copy(indiaPos);
+        controls.target.copy(surfacePos);
+        controls.update();
+
+        document.getElementById('coord-rain').textContent = `SUCCESS: ${data.length} pts`;
+    }
+
+    // Run renderRainData async after small delay (so texture loads can start)
+    setTimeout(renderRainData, 120);
+
+    // Raycasting and HUD
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const latEl  = document.getElementById('coord-lat');
+    const lonEl  = document.getElementById('coord-lon');
+    const rainEl = document.getElementById('coord-rain');
+
+    // Pointer and touch support
+    function setMouseFromEvent(e) {
+        if (e.touches && e.touches.length) {
+            mouse.x = (e.touches.clientX / innerWidth) * 2 - 1;
+            mouse.y = -(e.touches.clientY / innerHeight) * 2 + 1;
+        } else {
+            mouse.x = (e.clientX / innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+        }
+    }
+
+    window.addEventListener('pointermove', setMouseFromEvent, { passive:true });
+    window.addEventListener('touchmove', setMouseFromEvent, { passive:true });
+
+    // Debounced coordinate update to reduce heavy work
+    let coordsNeedsUpdate = true;
+    function scheduleCoordsUpdate() { coordsNeedsUpdate = true; }
+    window.addEventListener('pointermove', scheduleCoordsUpdate, { passive:true });
+    window.addEventListener('touchmove', scheduleCoordsUpdate, { passive:true });
+
+    function worldPointToLatLon(point) {
+        const p = point.clone().normalize();
+        const lat = 90 - (Math.acos(p.y) * 180 / Math.PI);
+        let lon = (Math.atan2(p.z, -p.x) * 180 / Math.PI) - 180;
+        // normalize
+        if (lon < -180) lon += 360;
+        if (lon > 180) lon -= 360;
+        return { lat, lon };
+    }
+
+    function updateCoords() {
+        if (!coordsNeedsUpdate) return;
+        coordsNeedsUpdate = false;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        const rainHits = raycaster.intersectObjects(rainMeshes, true);
+        if (rainHits.length > 0) {
+            const d = rainHits[0].object.userData;
+            latEl.textContent = `LAT ${d.lat.toFixed(1)}°`;
+            lonEl.textContent = `LON ${d.lon.toFixed(1)}°`;
+            rainEl.textContent = `RAIN ${Number(d.rain).toFixed(1)} mm`;
+            // highlight hit
+            rainHits[0].object.material.opacity = 1.0;
+            return;
+        }
+
+        const hits = raycaster.intersectObject(earth, true);
+        if (hits.length > 0) {
+            const res = worldPointToLatLon(hits[0].point.clone().applyMatrix4(earthGroup.matrixWorld.clone().invert()));
+            latEl.textContent = `LAT ${res.lat.toFixed(1)}°`;
+            lonEl.textContent = `LON ${res.lon.toFixed(1)}°`;
+            rainEl.textContent = `RAIN — mm`;
+            return;
+        }
+
+        latEl.textContent = `LAT —°`;
+        lonEl.textContent = `LON —°`;
+        rainEl.textContent = `RAIN — mm`;
+    }
+
+    // Animation loop
+    const clock = new THREE.Clock();
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = clock.getDelta();
+
+        earthGroup.rotation.y += 0.03 * dt;
+        // subtle star and atmosphere motion
+        scene.traverse(obj => {
+            if (obj.type === 'Points') obj.rotation.y -= 0.002 * dt;
+        });
+        atmos.rotation.y += 0.01 * dt;
+
+        // align camera light to camera direction
+        camera.getWorldPosition(cameraLight.position);
+        const camTarget = new THREE.Vector3();
+        camera.getWorldDirection(camTarget);
+        cameraLight.position.add(camTarget.multiplyScalar(0.1));
+
+        controls.update();
+        updateCoords();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // For debugging: expose a safe API
+    window.__TerraViewer = {
+        renderRainData,
+        setTexture: (uri) => {
+            if (!uri) return;
+            textureLoader.load(uri, tex => {
+                earth.material.map = tex;
+                earth.material.needsUpdate = true;
+            }, undefined, (e)=>console.warn('setTexture failed', e));
+        }
+    };
     </script>
 </body>
 </html>
