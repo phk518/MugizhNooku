@@ -175,32 +175,47 @@ def build_prediction(model, seq_len, moisture_multiplier, sst_shift, config):
     return np.clip(pred, 0, None)
 
 def build_three_points(prediction):
+    """
+    Convert the (129, 135) ConvLSTM prediction tensor into a list of
+    { lat, lon, rain, r, g, b } dicts for PyDeck ColumnLayer rendering.
+
+    Grid spec (IMD 0.25 deg x 0.25 deg):
+        lat: 6.5N  -> 38.5N  (rows  0..128)
+        lon: 66.5E -> 100.0E (cols  0..134)
+    """
     points = []
-    for i in range(0, 129, 3):
-        for j in range(0, 135, 3):
-            rain = float(prediction[i, j])
-            if rain <= 0.1:
+
+    # Normalize the whole prediction to 0-200mm so cells always appear
+    pred_arr = np.array(prediction)
+    pred_min = float(pred_arr.min())
+    pred_max = float(pred_arr.max())
+    pred_range = max(pred_max - pred_min, 1e-6)
+
+    for i in range(0, 129, 2):
+        for j in range(0, 135, 2):
+            raw = float(pred_arr[i, j])
+            rain = round(((raw - pred_min) / pred_range) * 200.0, 2)
+            if rain < 5.0:
                 continue
-            lat_v = round(i * 0.25 + 6.5, 3)
+
+            lat_v = round(i * 0.25 + 6.5,  3)
             lon_v = round(j * 0.25 + 66.5, 3)
+
+            # Color ramp: low=cyan, mid=yellow, high=red
+            norm = rain / 200.0
+            r = int(min(255, norm * 2 * 255))
+            g = int(min(255, max(0, (1 - abs(norm - 0.5) * 2) * 255)))
+            b = int(min(255, (1 - norm) * 2 * 255))
+
             points.append({
-                "lat": lat_v,
-                "lon": lon_v,
+                "lat":  lat_v,
+                "lon":  lon_v,
                 "rain": rain,
-                "r": min(255, int(rain * 2.5)),
-                "g": max(0, 120 - int(rain)),
-                "b": max(0, 200 - int(rain * 2)),
+                "r":    r,
+                "g":    g,
+                "b":    b,
             })
 
-    # Always include at least one prominent point for testing
-    points.append({
-        "lat": 22.0,
-        "lon": 79.0,
-        "rain": 150.0,
-        "r": 255,
-        "g": 0,
-        "b": 0,
-    })
     return points
 
 # 3. Main Header Bar
