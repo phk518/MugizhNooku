@@ -327,10 +327,10 @@ with col_center:
         df['color'] = []
 
     view_state = pdk.ViewState(
-        latitude=22.0,
-        longitude=79.0,
-        zoom=4.2,
-        pitch=50,
+        latitude=20.5,
+        longitude=80.0,
+        zoom=4.0,
+        pitch=40,
         bearing=0
     )
     
@@ -339,19 +339,25 @@ with col_center:
         data=df,
         get_position=["lon", "lat"],
         get_elevation="rain",
-        elevation_scale=5000,
-        radius=3000,
+        elevation_scale=3500,
+        radius=14000,
         get_fill_color="color",
+        get_line_color=[0, 0, 0],
+        line_width_min_pixels=0,
         extruded=True,
         pickable=True,
         auto_highlight=True,
+        coverage=0.85,
     )
     
     r = pdk.Deck(
         layers=[column_layer],
         initial_view_state=view_state,
         map_style="mapbox://styles/mapbox/dark-v11",
-        tooltip={"html": "<b>Rainfall:</b> {rain} mm<br/><b>Lat:</b> {lat} <br/><b>Lon:</b> {lon}"}
+        tooltip={
+            "html": "<b style='color:#00ffff'>Rainfall:</b> {rain} mm<br/><b>Lat:</b> {lat}<br/><b>Lon:</b> {lon}",
+            "style": {"backgroundColor": "rgba(0,10,30,0.85)", "color": "white", "fontSize": "12px", "borderRadius": "6px", "padding": "8px"}
+        }
     )
     
     st.pydeck_chart(r, use_container_width=True)
