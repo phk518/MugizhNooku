@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import json
 from pathlib import Path
 
@@ -474,75 +474,59 @@ st.markdown("""
 # - 6. LEFT SIDEBAR -
 st.markdown("""
 <div class="left-sidebar">
-  <div style="margin-bottom:20px;">
-    <div class="sidebar-section-label">[CORE_INTELLIGENCE]</div>
-    <div class="sidebar-engine">
-      <div class="sidebar-engine-icon">
-        <span style="font-family:'Material Symbols Outlined';color:#6fd7d6;font-size:22px;">psychology</span>
-      </div>
-      <div>
-        <div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:600;color:#6fd7d6;text-transform:uppercase;letter-spacing:0.05em;">Neural Engine</div>
-        <div style="font-size:11px;font-family:'Space Mono',monospace;color:#849495;">Model v4.2 Active</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="sidebar-nav-item active">
-    <span style="font-family:'Material Symbols Outlined';">analytics</span>
-    Data Assimilation
-  </div>
-  <div class="sidebar-nav-item inactive">
-    <span style="font-family:'Material Symbols Outlined';">warning</span>
-    Risk Matrix
-  </div>
-  <div class="sidebar-nav-item inactive">
-    <span style="font-family:'Material Symbols Outlined';">settings_input_antenna</span>
-    Telemetry Sources
-  </div>
-
-  <div style="margin-top:24px;">
-    <div style="font-size:11px;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:0.14em;color:#849495;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;margin-bottom:12px;">SENSOR MESH</div>
-
-    <div class="sensor-card green hud-corner">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span class="sensor-id">#INSAT-3DR_NODE</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:pulse-green 2s infinite;"></div>
-          <span class="sensor-status-active">ACTIVE</span>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-family:'Material Symbols Outlined';color:#74f5ff;">satellite_alt</span>
-        <span class="sensor-label">Geostationary Link</span>
-      </div>
-    </div>
-
-    <div class="sensor-card cyan hud-corner" style="overflow:hidden;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span class="sensor-id">#DOPPLER_NET</span>
-        <span class="sensor-status-scan">SCANNING</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-family:'Material Symbols Outlined';color:#74f5ff;">radar</span>
-        <span class="sensor-label">C-Band Network</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="glass hud-corner" style="margin-top:12px;">
-    <div style="font-size:10px;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:0.14em;color:#6fd7d6;margin-bottom:12px;">HARDWARE TELEMETRY</div>
-    <div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <span class="hw-label">VRAM ALLOCATION</span>
-        <span class="hw-val">88%</span>
-      </div>
-      <div class="hw-bar-bg"><div class="hw-bar-fill" style="width:88%;"></div></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);">
-      <span class="hw-label">INFERENCE LATENCY</span>
-      <span class="latency-val">42ms</span>
-    </div>
-  </div>
+<div style="margin-bottom:20px;">
+<div class="sidebar-section-label">[CORE_INTELLIGENCE]</div>
+<div class="sidebar-engine">
+<div class="sidebar-engine-icon">&#129504;</div>
+<div>
+<div style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:600;color:#6fd7d6;text-transform:uppercase;letter-spacing:0.05em;">Neural Engine</div>
+<div style="font-size:11px;font-family:'Space Mono',monospace;color:#849495;">Model v4.2 Active</div>
+</div>
+</div>
+</div>
+<div class="sidebar-nav-item active"><span style="font-size:16px;">&#128202;</span> Data Assimilation</div>
+<div class="sidebar-nav-item inactive"><span style="font-size:16px;">&#9888;</span> Risk Matrix</div>
+<div class="sidebar-nav-item inactive"><span style="font-size:16px;">&#128225;</span> Telemetry Sources</div>
+<div style="margin-top:24px;">
+<div style="font-size:11px;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:0.14em;color:#849495;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:8px;margin-bottom:12px;">SENSOR MESH</div>
+<div style="background:rgba(10,25,47,0.4);border:1px solid rgba(116,245,255,0.15);border-left:2px solid rgba(74,222,128,0.8);border-radius:4px;padding:14px;margin-bottom:10px;position:relative;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<span style="font-size:10px;color:#849495;font-family:'Space Mono',monospace;">[INSAT-3DR_NODE]</span>
+<div style="display:flex;align-items:center;gap:6px;">
+<div style="width:6px;height:6px;border-radius:50%;background:#4ade80;"></div>
+<span style="font-size:10px;color:#4ade80;font-family:'Space Mono',monospace;">ACTIVE</span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;">
+<span style="font-size:18px;">&#128752;</span>
+<span style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-family:'Space Mono',monospace;color:#dce4e4;">Geostationary Link</span>
+</div>
+</div>
+<div style="background:rgba(10,25,47,0.4);border:1px solid rgba(116,245,255,0.15);border-left:2px solid rgba(116,245,255,0.8);border-radius:4px;padding:14px;margin-bottom:10px;position:relative;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<span style="font-size:10px;color:#849495;font-family:'Space Mono',monospace;">[DOPPLER_NET]</span>
+<span style="font-size:10px;color:#74f5ff;font-family:'Space Mono',monospace;">SCANNING</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;">
+<span style="font-size:18px;">&#127941;</span>
+<span style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-family:'Space Mono',monospace;color:#dce4e4;">C-Band Network</span>
+</div>
+</div>
+</div>
+<div style="background:rgba(10,25,47,0.4);backdrop-filter:blur(12px);border:1px solid rgba(116,245,255,0.15);border-radius:4px;padding:16px;margin-top:12px;">
+<div style="font-size:10px;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:0.14em;color:#6fd7d6;margin-bottom:12px;">HARDWARE TELEMETRY</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+<span style="font-size:9px;font-family:'Space Mono',monospace;color:#849495;">VRAM ALLOCATION</span>
+<span style="font-size:9px;font-family:'Space Mono',monospace;color:#74f5ff;">88%</span>
+</div>
+<div style="width:100%;background:rgba(255,255,255,0.05);height:6px;border-radius:999px;overflow:hidden;margin-bottom:12px;">
+<div style="height:100%;width:88%;border-radius:999px;background:linear-gradient(90deg,#74f5ff,#ff00aa);box-shadow:0 0 8px #74f5ff;"></div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);">
+<span style="font-size:9px;font-family:'Space Mono',monospace;color:#849495;">INFERENCE LATENCY</span>
+<span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:#e1fdff;">42ms</span>
+</div>
+</div>
 </div>
 """, unsafe_allow_html=True)
 
