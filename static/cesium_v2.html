@@ -132,7 +132,7 @@
     }
 
     function parsePoints() {
-      if (!injectedData || injectedData === "/*_INJECT_DATA_*/") return [];
+      if (!injectedData || injectedData.includes("_INJECT_DATA_")) return [];
       try {
         const parsed = JSON.parse(injectedData);
         return Array.isArray(parsed) ? parsed : [];
@@ -197,7 +197,7 @@
     }
 
     function setTextureFallbackIfNeeded() {
-      const hasInjectedTexture = injectedTexture && injectedTexture !== "/*_INJECT_TEXTURE_*/";
+      const hasInjectedTexture = injectedTexture && !injectedTexture.includes("_INJECT_TEXTURE_");
       if (!hasInjectedTexture) {
         statusEl.textContent = "No injected texture provided; using default imagery";
       }
