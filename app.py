@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import json
 from pathlib import Path
 
@@ -14,7 +14,7 @@ _BASE = Path(__file__).resolve().parent
 WEIGHTS_PATH = _BASE / "models" / "mugizhnokku_best.pth"
 CONFIG_PATH  = _BASE / "models" / "normalization_config.json"
 
-# ── 1. PAGE CONFIG ──────────────────────────────────────────────────────────
+# - 1. PAGE CONFIG -
 st.set_page_config(
     page_title="MugizhNokku Digital Twin",
     page_icon="🌍",
@@ -22,14 +22,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── 2. GLOBAL CSS ────────────────────────────────────────────────────────────
+# - 2. GLOBAL CSS -
 st.markdown("""
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&display=swap" rel="stylesheet">
 
 <style>
-/* ── Reset ── */
+/* - Reset - */
 *, *::before, *::after { box-sizing: border-box; }
 
 .stApp {
@@ -46,7 +46,7 @@ header[data-testid="stHeader"], footer { visibility: hidden !important; height: 
 section[data-testid="stSidebar"] { display: none !important; }
 div[data-testid="stToolbar"] { display: none !important; }
 
-/* ── Top nav bar ── */
+/* - Top nav bar - */
 .top-nav {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -95,7 +95,7 @@ div[data-testid="stToolbar"] { display: none !important; }
 }
 .sys-label { font-size: 10px; color: #4ade80; font-family: 'Space Mono', monospace; }
 
-/* ── Sidebar ── */
+/* - Sidebar - */
 .left-sidebar {
     position: fixed;
     top: 56px; left: 0;
@@ -149,7 +149,7 @@ div[data-testid="stToolbar"] { display: none !important; }
 .sidebar-nav-item.inactive { color: #849495; }
 .sidebar-nav-item.inactive:hover { background: rgba(255,255,255,0.04); }
 
-/* ── Glass Panel ── */
+/* - Glass Panel - */
 .glass {
     background: rgba(10,25,47,0.4);
     backdrop-filter: blur(12px);
@@ -175,7 +175,7 @@ div[data-testid="stToolbar"] { display: none !important; }
     border-bottom:2px solid #74f5ff; border-right:2px solid #74f5ff;
 }
 
-/* ── Sensor Cards ── */
+/* - Sensor Cards - */
 .sensor-card {
     border-radius: 4px; padding: 14px;
     margin-bottom: 10px; position: relative;
@@ -187,7 +187,7 @@ div[data-testid="stToolbar"] { display: none !important; }
 .sensor-status-scan   { font-size:10px; color:#74f5ff; font-family:'Space Mono',monospace; }
 .sensor-label { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; font-family:'Space Mono',monospace; color:#dce4e4; margin-top:6px;}
 
-/* ── Hardware bar ── */
+/* - Hardware bar - */
 .hw-bar-bg {
     width:100%; background:rgba(255,255,255,0.05);
     height:6px; border-radius:999px; overflow:hidden; margin-top:4px;
@@ -201,7 +201,7 @@ div[data-testid="stToolbar"] { display: none !important; }
 .hw-val   { font-size:9px; font-family:'Space Mono',monospace; color:#74f5ff; }
 .latency-val { font-family:'Space Mono',monospace; font-size:14px; font-weight:700; color:#e1fdff; }
 
-/* ── Run button ── */
+/* - Run button - */
 .run-btn-wrapper .stButton > button {
     width:100% !important;
     padding: 14px !important;
@@ -222,7 +222,7 @@ div[data-testid="stToolbar"] { display: none !important; }
     box-shadow: 0 0 24px rgba(116,245,255,0.6) !important;
 }
 
-/* ── Main viewport ── */
+/* - Main viewport - */
 .main-viewport {
     margin-left: 320px;
     margin-top: 56px;
@@ -231,7 +231,7 @@ div[data-testid="stToolbar"] { display: none !important; }
     overflow: hidden;
 }
 
-/* ── Floating top-right panel ── */
+/* - Floating top-right panel - */
 .fr-panel {
     position: absolute;
     top: 16px; right: 16px;
@@ -257,7 +257,7 @@ div[data-testid="stToolbar"] { display: none !important; }
     box-shadow: 0 0 8px rgba(255,0,170,0.3);
 }
 
-/* ── Datacube right panel ── */
+/* - Datacube right panel - */
 .dc-panel {
     position: absolute;
     top: 220px; right: 16px;
@@ -282,7 +282,7 @@ div[data-testid="stToolbar"] { display: none !important; }
 }
 .tensor-label { font-size:10px; font-family:'Space Mono',monospace; color:rgba(116,245,255,0.8); z-index:1; }
 
-/* ── Bottom temporal controls ── */
+/* - Bottom temporal controls - */
 .bottom-temporal {
     position: fixed;
     bottom: 88px;
@@ -292,7 +292,7 @@ div[data-testid="stToolbar"] { display: none !important; }
     z-index: 150;
 }
 
-/* ── Bottom nav ── */
+/* - Bottom nav - */
 .bottom-nav {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -316,7 +316,7 @@ div[data-testid="stToolbar"] { display: none !important; }
 .nav-btn span.icon { font-family:'Material Symbols Outlined'; font-size:22px; }
 .nav-btn span.lbl { font-size:9px; font-family:'Space Mono',monospace; font-weight:700; letter-spacing:0.15em; }
 
-/* ── Map overlay label ── */
+/* - Map overlay label - */
 .map-label {
     position:absolute; top:14px; left:16px; z-index:40;
     background:rgba(10,25,47,0.5); backdrop-filter:blur(8px);
@@ -329,28 +329,28 @@ div[data-testid="stToolbar"] { display: none !important; }
 .map-label-sub { font-size:9px; color:#849495; font-family:'Space Mono',monospace; letter-spacing:0.15em; }
 .map-label-main { font-size:11px; font-weight:700; color:#e1fdff; font-family:'Space Mono',monospace; letter-spacing:0.06em; }
 
-/* ── Metrics ── */
+/* - Metrics - */
 .metric-box { text-align:center; }
 .metric-label { font-size:10px; color:#849495; font-family:'Space Mono',monospace; letter-spacing:0.08em; }
 .metric-val { font-family:'Orbitron',sans-serif; font-size:22px; font-weight:700; color:#74f5ff; line-height:1.2; }
 .panel-title { font-family:'Space Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#6fd7d6; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
 
-/* ── Slider overrides ── */
+/* - Slider overrides - */
 div[data-testid="stSlider"] label { font-size:10px !important; font-family:'Space Mono',monospace !important; color:#849495 !important; letter-spacing:0.08em !important; }
 div[data-testid="stSlider"] .stSlider > div > div > div { background: #74f5ff !important; }
 
-/* ── Progress / metric overrides ── */
+/* - Progress / metric overrides - */
 div[data-testid="stMetricValue"] { font-family:'Orbitron',sans-serif !important; color:#74f5ff !important; font-size:22px !important; }
 div[data-testid="stMetricLabel"] p { font-family:'Space Mono',monospace !important; font-size:10px !important; color:#849495 !important; }
 
-/* ── PyDeck chart container ── */
+/* - PyDeck chart container - */
 div[data-testid="stDeckGlJsonChart"] {
     border-radius: 0 !important;
     border: none !important;
     height: 100% !important;
 }
 
-/* ── Animations ── */
+/* - Animations - */
 @keyframes pulse-green {
     0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.4); }
     70%  { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
@@ -368,7 +368,7 @@ div[data-testid="stDeckGlJsonChart"] {
 """, unsafe_allow_html=True)
 
 
-# ── 3. CACHED MODEL & DATA ────────────────────────────────────────────────────
+# - 3. CACHED MODEL & DATA -
 @st.cache_resource
 def load_model(weights_path: Path):
     model = DigitalTwinPredictor(input_channels=3, hidden_channels=32, out_channels=1)
@@ -443,7 +443,7 @@ def build_deck_df(prediction):
     return pd.DataFrame(rows)
 
 
-# ── 4. SESSION STATE ──────────────────────────────────────────────────────────
+# - 4. SESSION STATE -
 model, weights_found = load_model(WEIGHTS_PATH)
 config = load_config(CONFIG_PATH)
 
@@ -452,7 +452,7 @@ for k, v in [("prediction", np.zeros((129, 135))), ("peak_val", 0.0), ("grid_avg
         st.session_state[k] = v
 
 
-# ── 5. TOP NAV ────────────────────────────────────────────────────────────────
+# - 5. TOP NAV -
 st.markdown("""
 <div class="top-nav">
   <div style="display:flex;align-items:center;">
@@ -471,7 +471,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── 6. LEFT SIDEBAR ───────────────────────────────────────────────────────────
+# - 6. LEFT SIDEBAR -
 st.markdown("""
 <div class="left-sidebar">
   <div style="margin-bottom:20px;">
@@ -547,7 +547,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── 7. MAIN VIEWPORT ──────────────────────────────────────────────────────────
+# - 7. MAIN VIEWPORT -
 st.markdown('<div class="main-viewport">', unsafe_allow_html=True)
 
 # Map label overlay
@@ -625,7 +625,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── PyDeck 3D Map ─────────────────────────────────────────────────────────────
+# - PyDeck 3D Map -
 df = build_deck_df(st.session_state['prediction'])
 
 view_state = pdk.ViewState(
@@ -659,7 +659,7 @@ st.pydeck_chart(deck, use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ── 8. BOTTOM TEMPORAL CONTROLS ───────────────────────────────────────────────
+# - 8. BOTTOM TEMPORAL CONTROLS -
 st.markdown("""
 <div class="bottom-temporal">
   <div class="glass hud-corner" style="border-radius:14px;padding:20px 24px;border-color:rgba(116,245,255,0.25);box-shadow:0 0 30px rgba(116,245,255,0.1);">
@@ -717,7 +717,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── 9. CONTROLS (hidden in sidebar-style overlay) ─────────────────────────────
+# - 9. CONTROLS (hidden in sidebar-style overlay) -
 with st.sidebar:
     st.markdown("### ⚙️ Scenario Controls")
     sst_shift    = st.slider("Sea Surface Temp Shift (°C)", -2.0, 4.0, 0.0, 0.1)
@@ -732,7 +732,7 @@ with st.sidebar:
         st.rerun()
 
 
-# ── 10. BOTTOM NAV + RIGHT PANEL CONTROLS via overlay column ─────────────────
+# - 10. BOTTOM NAV + RIGHT PANEL CONTROLS via overlay column -
 # Controls overlay (right side, inline with main layout using a transparent container)
 with st.container():
     st.markdown("""
@@ -749,7 +749,7 @@ with st.container():
     """, unsafe_allow_html=True)
 
 
-# ── 11. BOTTOM NAV ────────────────────────────────────────────────────────────
+# - 11. BOTTOM NAV -
 st.markdown("""
 <div class="bottom-nav">
   <div class="nav-btn">
