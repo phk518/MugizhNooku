@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
+import pydeck as pdk
 import torch
 
 from model import DigitalTwinPredictor
@@ -15,9 +15,6 @@ from model import DigitalTwinPredictor
 _BASE = Path(__file__).resolve().parent
 WEIGHTS_PATH = _BASE / "models" / "mugizhnokku_best.pth"
 CONFIG_PATH = _BASE / "models" / "normalization_config.json"
-HTML_PATH = _BASE / "static" / "cesium_v2.html"
-TEXTURE_URL = "https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg"
-FALLBACK_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
 
 # 1. Page Configuration & Layout Initialization
 st.set_page_config(
@@ -206,13 +203,6 @@ def build_three_points(prediction):
     })
     return points
 
-def inject_html(template_path: Path, texture_uri: str, data_json: str):
-    with open(template_path, "r", encoding="utf-8") as f:
-        html = f.read()
-    html = html.replace("/*_INJECT_TEXTURE_*/", texture_uri)
-    html = html.replace("/*_INJECT_DATA_*/", data_json)
-    return html
-
 # 3. Main Header Bar
 st.markdown("<div class='main-title'>முகில்நோக்கு • MUGIZHNOKKU DIGITAL TWIN</div>", unsafe_allow_html=True)
 
@@ -273,20 +263,44 @@ with col_left:
 
 # ── CENTER PANEL: THE LIVE DIGITAL TWIN VISUALIZATION ──
 with col_center:
-    # Build payload based on current state
     three_points = build_three_points(st.session_state['prediction'])
-    json_data = json.dumps(three_points, ensure_ascii=False)
-    texture_uri = load_texture_data_uri(TEXTURE_URL)
+    df = pd.DataFrame(three_points)
     
-    try:
-        globe_html = inject_html(HTML_PATH, texture_uri, json_data)
-        
-        # Render the full-screen Cesium Engine Canvas
-        components.html(globe_html, height=650, scrolling=False)
-        
-    except FileNotFoundError:
-        st.error(f"Static Asset Error: '{HTML_PATH}' not found. Please verify directory structure.")
-        
+    if not df.empty:
+        df['color'] = df[['r', 'g', 'b']].values.tolist()
+    else:
+        df['color'] = []
+
+    view_state = pdk.ViewState(
+        latitude=22.0,
+        longitude=79.0,
+        zoom=4.2,
+        pitch=50,
+        bearing=0
+    )
+    
+    column_layer = pdk.Layer(
+        "ColumnLayer",
+        data=df,
+        get_position=["lon", "lat"],
+        get_elevation="rain",
+        elevation_scale=5000,
+        radius=3000,
+        get_fill_color="color",
+        extruded=True,
+        pickable=True,
+        auto_highlight=True,
+    )
+    
+    r = pdk.Deck(
+        layers=[column_layer],
+        initial_view_state=view_state,
+        map_style="mapbox://styles/mapbox/dark-v11",
+        tooltip={"html": "<b>Rainfall:</b> {rain} mm<br/><b>Lat:</b> {lat} <br/><b>Lon:</b> {lon}"}
+    )
+    
+    st.pydeck_chart(r, use_container_width=True)
+    
     st.markdown("""
         <div class='hud-panel' style='margin-top:-5px;'>
             <div class='hud-header'>🛡️ Climate Sector Adaptations</div>
